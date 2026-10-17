@@ -1502,3 +1502,84 @@ textarea.input {
 .tv-row:hover .tv-actions {
   display: flex;
 }
+
+/* ---------- icon picker ---------- */
+
+.tile-btn {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 8px;
+  position: relative;
+}
+.tile-btn:hover::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.icon-tile svg {
+  flex-shrink: 0;
+}
+.modal.icon-picker {
+  width: 520px;
+}
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 6px;
+  padding: 2px;
+}
+.icon-choice {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  padding: 2px;
+  display: grid;
+  place-items: center;
+}
+.icon-choice:hover {
+  background: var(--section);
+}
+.icon-choice.on {
+  border-color: var(--accent);
+}
+.icon-choice .swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: white;
+}
+.icon-choice.auto {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  padding: 2px 6px;
+}
+.color-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.color-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+  padding: 0;
+}
+.color-dot.on {
+  border-color: var(--panel);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.color-dot:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

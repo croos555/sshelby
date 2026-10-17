@@ -1,6 +1,9 @@
 export interface Group {
   id: string
   name: string
+  // Custom icon (name from the renderer's icon set) and tile color; empty = default folder
+  icon?: string | null
+  color?: string | null
   parentId?: string | null
   // Defaults inherited by hosts (and subgroups) that leave these empty
   username?: string
@@ -18,6 +21,9 @@ export interface Host {
   id: string
   label: string
   address: string
+  // Custom icon and tile color; empty = OS badge
+  icon?: string | null
+  color?: string | null
   port?: number
   username?: string
   password?: string

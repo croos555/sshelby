@@ -22,6 +22,7 @@ import type { Group, Host } from '@shared/types'
 import { errMsg, useStore } from '../store'
 import { confirmDialog, Field, GroupIcon, HostIcon, Panel, Select, Switch } from './ui'
 import Credentials from './Credentials'
+import { IconPicker } from './icons'
 import { THEMES } from '../themes'
 
 export function groupPath(groups: Group[], id?: string | null): string {
@@ -61,6 +62,7 @@ export function groupOptions(groups: Group[], exclude?: string) {
 export function HostEditor({ initial }: { initial: Partial<Host> }) {
   const { vault, upsert, remove, setEditing, openTab, notify } = useStore()
   const [h, setH] = useState<Partial<Host>>(initial)
+  const [pickIcon, setPickIcon] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [more, setMore] = useState(false)
   useEffect(() => setH(initial), [initial])
@@ -139,12 +141,18 @@ export function HostEditor({ initial }: { initial: Partial<Host> }) {
       <div className="psection">
         <h4>Address</h4>
         <div className="row">
-          {h.id ? (
-            <HostIcon host={h as Host} size="sm" />
-          ) : (
-            <div className="icon-tile sm" style={{ background: '#3d4556' }}>
-              <Server size={15} />
-            </div>
+          <button className="tile-btn" title="Change icon" onClick={() => setPickIcon(true)}>
+            <HostIcon host={{ ...h, address: h.address || '' } as Host} size="sm" />
+          </button>
+          {pickIcon && (
+            <IconPicker
+              icon={h.icon}
+              color={h.color}
+              autoLabel={h.os ? `${h.os} badge` : 'operating system badge'}
+              autoPreview={<HostIcon host={{ ...h, icon: null } as Host} size="sm" />}
+              onChange={(p) => set(p)}
+              onClose={() => setPickIcon(false)}
+            />
           )}
           <div className="grow">
             <Field value={h.address} onChange={(v) => set({ address: v })} placeholder="IP or Hostname" autoFocus={!h.id} />
@@ -238,6 +246,7 @@ export function HostEditor({ initial }: { initial: Partial<Host> }) {
 export function GroupEditor({ initial }: { initial: Partial<Group> }) {
   const { vault, upsert, remove, setEditing, notify } = useStore()
   const [g, setG] = useState<Partial<Group>>(initial)
+  const [pickIcon, setPickIcon] = useState(false)
   useEffect(() => setG(initial), [initial])
   if (!vault) return null
   const set = (patch: Partial<Group>) => setG((x) => ({ ...x, ...patch }))
@@ -283,7 +292,19 @@ export function GroupEditor({ initial }: { initial: Partial<Group> }) {
       <div className="psection">
         <h4>General</h4>
         <div className="row">
-          <GroupIcon size="sm" />
+          <button className="tile-btn" title="Change icon" onClick={() => setPickIcon(true)}>
+            <GroupIcon group={g} size="sm" />
+          </button>
+          {pickIcon && (
+            <IconPicker
+              icon={g.icon}
+              color={g.color}
+              autoLabel="folder"
+              autoPreview={<GroupIcon size="sm" />}
+              onChange={(p) => set(p)}
+              onClose={() => setPickIcon(false)}
+            />
+          )}
           <div className="grow">
             <Field value={g.name} onChange={(v) => set({ name: v })} placeholder="Name" autoFocus={!g.id} onEnter={save} />
           </div>

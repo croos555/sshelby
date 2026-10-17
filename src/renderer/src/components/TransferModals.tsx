@@ -131,7 +131,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
                 disabled={implied}
                 onChange={() => toggle(groups, setGroups, g.id)}
               />
-              <GroupIcon size="sm" />
+              <GroupIcon group={g} size="sm" />
               <span>{g.name}</span>
             </div>
             {open && renderLevel(g.id, depth + 1)}

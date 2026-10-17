@@ -20,9 +20,8 @@ import { GroupEditor, HostEditor } from './components/HostEditor'
 import TerminalTab from './components/TerminalTab'
 import SftpTab from './components/SftpTab'
 import PromptModal from './components/PromptModal'
-import { ConfirmHost, PromptHost } from './components/ui'
+import { ConfirmHost, HostIcon, PromptHost } from './components/ui'
 import { ExportModal, ImportModal } from './components/TransferModals'
-import { osBadge } from './themes'
 
 const NAV: { id: View; label: string; icon: typeof Server }[] = [
   { id: 'hosts', label: 'Hosts', icon: Server },
@@ -118,12 +117,7 @@ export default function App() {
               {t.kind === 'sftp' ? (
                 <FolderSync size={14} />
               ) : (
-                <span
-                  className="icon-tile"
-                  style={{ width: 16, height: 16, borderRadius: 4, fontSize: 9, background: osBadge(host?.os).color }}
-                >
-                  {osBadge(host?.os).letter || <Server size={10} />}
-                </span>
+                host ? <HostIcon host={host} size="xs" /> : <Server size={14} />
               )}
               <span className="title">{t.title}</span>
               {t.kind === 'ssh' && <span className={`dot ${t.status}`} />}

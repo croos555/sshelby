@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronRight, Folder, FolderOpen, FolderSync, Plus, SquareTerminal } from 'lucide-react'
 import type { Group, Host, Vault } from '@shared/types'
-import { HostIcon } from './ui'
+import { GroupIcon, HostIcon } from './ui'
 
 const STORE_KEY = 'sshelby.tree.collapsed'
 
@@ -173,7 +173,11 @@ export default function HostTree(props: Props) {
                 >
                   {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
-                <span className="tv-folder">{open ? <FolderOpen size={15} /> : <Folder size={15} />}</span>
+                {g.icon ? (
+                  <GroupIcon group={g} size="sm" />
+                ) : (
+                  <span className="tv-folder">{open ? <FolderOpen size={15} /> : <Folder size={15} />}</span>
+                )}
                 <span className="tv-name">{g.name}</span>
                 <span className="tv-count">{n}</span>
                 <span className="tv-actions">

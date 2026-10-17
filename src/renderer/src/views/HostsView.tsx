@@ -363,7 +363,7 @@ export default function HostsView() {
                       }}
                       onContextMenu={(e) => groupMenu(e, g)}
                     >
-                      <GroupIcon />
+                      <GroupIcon group={g} />
                       <div className="meta">
                         <div className="name">{g.name}</div>
                         <div className="sub">

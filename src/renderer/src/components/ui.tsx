@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Server, Folder, X, LucideIcon } from 'lucide-react'
-import type { Host } from '@shared/types'
+import type { Group, Host } from '@shared/types'
+import { CustomTile } from './icons'
 import { osBadge } from '../themes'
 
 export function Field({
@@ -151,8 +152,15 @@ export function Empty({
   )
 }
 
-export function HostIcon({ host, size = 'md' }: { host: Host; size?: 'md' | 'sm' }) {
+export function HostIcon({ host, size = 'md' }: { host: Host; size?: 'md' | 'sm' | 'xs' }) {
   const { color, letter } = osBadge(host.os)
+  if (host.icon) return <CustomTile icon={host.icon} color={host.color} size={size} fallbackColor={color} />
+  if (size === 'xs')
+    return (
+      <span className="icon-tile" style={{ width: 16, height: 16, borderRadius: 4, fontSize: 9, background: color }}>
+        {letter || <Server size={10} />}
+      </span>
+    )
   return (
     <div className={`icon-tile ${size === 'sm' ? 'sm' : ''}`} style={{ background: color }}>
       {letter || <Server size={size === 'sm' ? 15 : 18} />}
@@ -160,7 +168,8 @@ export function HostIcon({ host, size = 'md' }: { host: Host; size?: 'md' | 'sm'
   )
 }
 
-export function GroupIcon({ size = 'md' }: { size?: 'md' | 'sm' }) {
+export function GroupIcon({ group, size = 'md' }: { group?: Partial<Group>; size?: 'md' | 'sm' }) {
+  if (group?.icon) return <CustomTile icon={group.icon} color={group.color} size={size} fallbackColor="var(--group-icon)" />
   return (
     <div className={`icon-tile ${size === 'sm' ? 'sm' : ''}`} style={{ background: 'var(--group-icon)' }}>
       <Folder size={size === 'sm' ? 15 : 18} />
