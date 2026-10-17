@@ -9,6 +9,7 @@ import { connectHost } from './connect'
 import { closeAllSessions } from './sessions'
 import { closeAllSftp } from './sftp'
 import { autoStartForwards, stopAllForwards } from './forwards'
+import icon from '../../build/icon.png?asset'
 import './prompts'
 import './transfer'
 import { lockAll } from './keepass'
@@ -24,6 +25,8 @@ function createWindow() {
     title: 'Sshelby',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     autoHideMenuBar: true,
+    // Windows/macOS take the icon from the packaged app; Linux needs it on the window
+    ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -164,6 +167,8 @@ ipcMain.handle('dialog:pickFiles', async (_e, dirs: boolean) => {
 // ---------- lifecycle ----------
 
 app.whenReady().then(() => {
+  // Packaged builds have the bundle icon; show it in the Dock during development too
+  if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(icon)
   store.load()
   createWindow()
   app.on('activate', () => {
