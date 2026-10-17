@@ -28,6 +28,8 @@ export interface Host {
   keepAliveInterval?: number
   startupSnippetId?: string | null
   agentForwarding?: boolean
+  // Terminal color theme for this host; empty = the global default
+  theme?: string | null
   lastConnectedAt?: number
   // Detected from /etc/os-release on first connect (ubuntu, debian, alpine, darwin…)
   os?: string

@@ -15,12 +15,14 @@ import {
   ChevronDown,
   ChevronUp,
   Route,
-  Code2
+  Code2,
+  Palette
 } from 'lucide-react'
 import type { Group, Host } from '@shared/types'
 import { errMsg, useStore } from '../store'
 import { confirmDialog, Field, GroupIcon, HostIcon, Panel, Select, Switch } from './ui'
 import Credentials from './Credentials'
+import { THEMES } from '../themes'
 
 export function groupPath(groups: Group[], id?: string | null): string {
   const parts: string[] = []
@@ -207,6 +209,13 @@ export function HostEditor({ initial }: { initial: Partial<Host> }) {
               onChange={(v) => set({ startupSnippetId: v })}
               options={vault.snippets.map((s) => ({ value: s.id, label: s.label }))}
               placeholder="Startup snippet (none)"
+            />
+            <Select
+              icon={Palette}
+              value={h.theme}
+              onChange={(v) => set({ theme: v })}
+              options={THEMES.map((t) => ({ value: t.id, label: `${t.name}${t.dark ? '' : ' (light)'}` }))}
+              placeholder="Terminal theme (default)"
             />
             <Field
               icon={Globe}

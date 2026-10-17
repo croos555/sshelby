@@ -862,13 +862,15 @@ textarea.input {
   padding: 20px;
 }
 .term-side {
-  width: 260px;
+  --ts-fg: #d8dce4;
+  --ts-accent: #4fd1a5;
+  width: 270px;
   flex-shrink: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 1px solid color-mix(in srgb, var(--ts-fg) 10%, transparent);
   display: flex;
   flex-direction: column;
   min-height: 0;
-  color: #d8dce4;
+  color: var(--ts-fg);
 }
 .term-side .head {
   display: flex;
@@ -876,12 +878,12 @@ textarea.input {
   padding: 10px;
 }
 .term-side .icon-btn {
-  color: #9aa2ae;
+  color: color-mix(in srgb, var(--ts-fg) 60%, transparent);
 }
 .term-side .icon-btn:hover,
 .term-side .icon-btn.active {
-  background: rgba(255, 255, 255, 0.08);
-  color: #4fd1a5;
+  background: color-mix(in srgb, var(--ts-fg) 10%, transparent);
+  color: var(--ts-accent);
 }
 .term-side .list {
   flex: 1;
@@ -889,10 +891,12 @@ textarea.input {
   padding: 0 8px 10px;
 }
 .term-side h5 {
-  margin: 6px 6px 8px;
-  font-size: 12px;
+  margin: 12px 6px 6px;
+  font-size: 11px;
   font-weight: 600;
-  color: #9aa2ae;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: color-mix(in srgb, var(--ts-fg) 55%, transparent);
 }
 .theme-item,
 .snippet-item {
@@ -900,38 +904,131 @@ textarea.input {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 7px;
+  padding: 6px;
   border: 0;
   background: transparent;
-  border-radius: 7px;
+  border-radius: 8px;
   text-align: left;
   color: inherit;
 }
 .theme-item:hover,
-.snippet-item:hover,
-.theme-item.active {
-  background: rgba(255, 255, 255, 0.07);
+.snippet-item:hover {
+  background: color-mix(in srgb, var(--ts-fg) 8%, transparent);
 }
-.theme-swatch {
-  width: 64px;
-  height: 36px;
-  border-radius: 5px;
-  padding: 6px;
+.theme-item.active {
+  background: color-mix(in srgb, var(--ts-accent) 16%, transparent);
+}
+.theme-item.active .theme-name {
+  color: var(--ts-accent);
+}
+.theme-name {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
+  font-size: 13px;
+}
+.theme-name small {
+  font-size: 10px;
+  opacity: 0.6;
+}
+.theme-swatch {
+  width: 70px;
+  height: 42px;
+  border-radius: 6px;
+  padding: 7px 7px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ts-fg) 14%, transparent);
+}
+.theme-swatch div {
+  display: flex;
+  gap: 3px;
 }
 .theme-swatch span {
   height: 4px;
   border-radius: 2px;
 }
+.theme-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 4px 4px;
+}
+.theme-tools .seg {
+  display: flex;
+  background: color-mix(in srgb, var(--ts-fg) 8%, transparent);
+  border-radius: 7px;
+  padding: 2px;
+}
+.theme-tools .seg button {
+  flex: 1;
+  height: 24px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.theme-tools .seg button.on {
+  background: var(--ts-accent);
+  color: #0b1220;
+  opacity: 1;
+}
+.theme-tools .seg button:disabled {
+  opacity: 0.3;
+}
+.theme-tools .reset {
+  border: 0;
+  background: transparent;
+  color: var(--ts-accent);
+  font-size: 11px;
+  text-align: left;
+  padding: 0 2px;
+}
+.theme-tools .font-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.theme-tools .font-row span {
+  flex: 1;
+  opacity: 0.75;
+}
+.theme-tools .font-row button {
+  width: 24px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ts-fg) 10%, transparent);
+  color: inherit;
+}
+.theme-tools .font-row b {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 500;
+}
+.theme-search {
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--ts-fg) 14%, transparent);
+  background: transparent;
+  color: inherit;
+  padding: 0 9px;
+  outline: none;
+  font-size: 12px;
+}
+.theme-search::placeholder {
+  color: color-mix(in srgb, var(--ts-fg) 45%, transparent);
+}
 .snippet-item .meta {
   min-width: 0;
 }
 .snippet-item .mono {
-  color: #8a93a3;
+  color: color-mix(in srgb, var(--ts-fg) 55%, transparent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

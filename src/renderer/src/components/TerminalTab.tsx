@@ -5,12 +5,12 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
 import { Braces, Palette, PanelRightClose, PanelRightOpen, RotateCw, X, Search } from 'lucide-react'
 import { Tab, useStore } from '../store'
-import { getTheme, THEMES } from '../themes'
+import { getTheme, THEMES, TermTheme } from '../themes'
 
 const isMac = window.api.platform === 'darwin'
 
 export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean }) {
-  const { vault, updateTab, closeTab, saveSettings, setView, setEditing } = useStore()
+  const { vault, updateTab, closeTab, saveSettings, setView, setEditing, upsert } = useStore()
   const settings = vault!.settings
   const el = useRef<HTMLDivElement>(null)
   const term = useRef<Terminal>(undefined)
@@ -20,6 +20,9 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
   const [status, setStatus] = useState<{ s: Tab['status']; msg?: string }>({ s: 'connecting' })
   const [side, setSide] = useState<'snippets' | 'themes' | null>(null)
   const [findOpen, setFindOpen] = useState(false)
+  const [themeQuery, setThemeQuery] = useState('')
+  const [themeScope, setThemeScope] = useState<'host' | 'default'>('host')
+  const hostTheme = vault!.hosts.find((h) => h.id === tab.hostId)?.theme
   const [findText, setFindText] = useState('')
 
   const connect = () => {
@@ -37,7 +40,7 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
       fontSize: settings.fontSize,
       cursorBlink: settings.cursorBlink,
       scrollback: settings.scrollback,
-      theme: getTheme(settings.theme).theme,
+      theme: getTheme(hostTheme || settings.theme).theme,
       allowProposedApi: true,
       macOptionIsMeta: true
     })
@@ -115,13 +118,13 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
   useEffect(() => {
     const t = term.current
     if (!t) return
-    t.options.theme = getTheme(settings.theme).theme
+    t.options.theme = getTheme(hostTheme || settings.theme).theme
     t.options.fontFamily = settings.fontFamily
     t.options.fontSize = settings.fontSize
     t.options.cursorBlink = settings.cursorBlink
     t.options.scrollback = settings.scrollback
     fit.current?.fit()
-  }, [settings.theme, settings.fontFamily, settings.fontSize, settings.cursorBlink, settings.scrollback])
+  }, [hostTheme, settings.theme, settings.fontFamily, settings.fontSize, settings.cursorBlink, settings.scrollback])
 
   useEffect(() => {
     if (active) {
@@ -132,7 +135,34 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
     }
   }, [active, side])
 
-  const theme = getTheme(settings.theme).theme
+  const activeTheme = getTheme(hostTheme || settings.theme)
+  const theme = activeTheme.theme
+  const host = vault!.hosts.find((h) => h.id === tab.hostId)
+  const q = themeQuery.toLowerCase()
+  const pickTheme = (th: TermTheme) => {
+    if (themeScope === 'host' && host) upsert('hosts', { ...host, theme: th.id })
+    else saveSettings({ theme: th.id })
+  }
+  const themeGroup = (label: string, list: TermTheme[]) =>
+    list.length > 0 && (
+      <>
+        <h5>{label}</h5>
+        {list.map((th) => (
+          <button
+            key={th.id}
+            className={`theme-item ${activeTheme.id === th.id ? 'active' : ''}`}
+            onClick={() => pickTheme(th)}
+          >
+            <ThemePreview theme={th} />
+            <span className="theme-name">
+              {th.name}
+              {settings.theme === th.id && <small>default</small>}
+              {host?.theme === th.id && <small>this host</small>}
+            </span>
+          </button>
+        ))}
+      </>
+    )
   const runSnippet = (script: string) => {
     window.api.ssh.write(sessionId.current, script.replace(/\r?\n/g, '\r') + '\r')
     term.current?.focus()
@@ -220,7 +250,16 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
         )}
       </div>
       {side && (
-        <div className="term-side" style={{ background: theme.background }}>
+        <div
+          className="term-side"
+          style={
+            {
+              background: theme.background,
+              '--ts-fg': theme.foreground,
+              '--ts-accent': theme.green
+            } as React.CSSProperties
+          }
+        >
           <div className="head">
             <button className={`icon-btn ${side === 'snippets' ? 'active' : ''}`} title="Snippets" onClick={() => setSide('snippets')}>
               <Braces size={15} />
@@ -234,7 +273,7 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
               <>
                 <h5>Snippets</h5>
                 {vault!.snippets.length === 0 && (
-                  <div style={{ padding: 8, color: '#8a93a3', fontSize: 12 }}>
+                  <div style={{ padding: 8, opacity: 0.6, fontSize: 12 }}>
                     No snippets yet.{' '}
                     <button className="link" onClick={() => setView('snippets')}>
                       Create one
@@ -243,7 +282,7 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
                 )}
                 {vault!.snippets.map((s) => (
                   <button key={s.id} className="snippet-item" onClick={() => runSnippet(s.script)} title="Run in this session">
-                    <Braces size={14} style={{ flexShrink: 0, color: '#4fd1a5' }} />
+                    <Braces size={14} style={{ flexShrink: 0, color: 'var(--ts-accent)' }} />
                     <div className="meta">
                       <div>{s.label}</div>
                       <div className="mono">{s.script.split('\n')[0]}</div>
@@ -254,26 +293,62 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
             )}
             {side === 'themes' && (
               <>
-                <h5>Themes</h5>
-                {THEMES.map((th) => (
-                  <button
-                    key={th.id}
-                    className={`theme-item ${settings.theme === th.id ? 'active' : ''}`}
-                    onClick={() => saveSettings({ theme: th.id })}
-                  >
-                    <div className="theme-swatch" style={{ background: th.theme.background }}>
-                      <span style={{ background: th.theme.green, width: '70%' }} />
-                      <span style={{ background: th.theme.foreground, width: '45%' }} />
-                      <span style={{ background: th.theme.blue, width: '60%' }} />
-                    </div>
-                    <span style={{ color: settings.theme === th.id ? '#4fd1a5' : undefined }}>{th.name}</span>
-                  </button>
-                ))}
+                <div className="theme-tools">
+                  <div className="seg">
+                    <button className={themeScope === 'host' ? 'on' : ''} disabled={!host} onClick={() => setThemeScope('host')}>
+                      This host
+                    </button>
+                    <button className={themeScope === 'default' ? 'on' : ''} onClick={() => setThemeScope('default')}>
+                      Default
+                    </button>
+                  </div>
+                  {themeScope === 'host' && host?.theme && (
+                    <button className="reset" onClick={() => upsert('hosts', { ...host, theme: null })}>
+                      Use default theme for this host
+                    </button>
+                  )}
+                  <div className="font-row">
+                    <span>Font size</span>
+                    <button onClick={() => saveSettings({ fontSize: Math.max(8, settings.fontSize - 1) })}>−</button>
+                    <b>{settings.fontSize}</b>
+                    <button onClick={() => saveSettings({ fontSize: Math.min(32, settings.fontSize + 1) })}>+</button>
+                  </div>
+                  <input
+                    className="theme-search"
+                    placeholder="Search themes"
+                    value={themeQuery}
+                    onChange={(e) => setThemeQuery(e.target.value)}
+                  />
+                </div>
+                {themeGroup('Dark', THEMES.filter((th) => th.dark && th.name.toLowerCase().includes(q)))}
+                {themeGroup('Light', THEMES.filter((th) => !th.dark && th.name.toLowerCase().includes(q)))}
               </>
             )}
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// Mini terminal mock-up in the theme's colors, like Termius' theme list
+function ThemePreview({ theme: th }: { theme: TermTheme }) {
+  const c = th.theme
+  return (
+    <div className="theme-swatch" style={{ background: c.background }}>
+      <div>
+        <span style={{ background: c.green, width: 10 }} />
+        <span style={{ background: c.foreground, width: 26 }} />
+      </div>
+      <div>
+        <span style={{ background: c.blue, width: 18 }} />
+        <span style={{ background: c.yellow, width: 12 }} />
+        <span style={{ background: c.magenta, width: 8 }} />
+      </div>
+      <div>
+        <span style={{ background: c.red, width: 14 }} />
+        <span style={{ background: c.cyan, width: 20 }} />
+      </div>
     </div>
   )
 }
