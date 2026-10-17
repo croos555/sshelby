@@ -14,7 +14,8 @@ export default function PromptModal() {
   const req = queue[0]
   useEffect(() => {
     setValues(req?.kind === 'keyboard-interactive' ? req.prompts.map(() => '') : [''])
-    setRemember(true)
+    // Remembering a KeePass master password is opt-in; saving host credentials is opt-out
+    setRemember(!(req?.kind === 'password' && req.saveLabel))
   }, [req?.id])
 
   if (!req) return null
@@ -105,7 +106,7 @@ export default function PromptModal() {
         {req.offerSave && (
           <label className="row" style={{ gap: 8 }}>
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            <span>Save to host</span>
+            <span>{(req.kind === 'password' && req.saveLabel) || 'Save to host'}</span>
           </label>
         )}
         <div className="actions">

@@ -41,6 +41,7 @@ const LABELS: Record<string, string> = {
   hosts: 'hosts',
   keys: 'SSH keys',
   identities: 'identities',
+  keepass: 'KeePass databases',
   snippets: 'snippets',
   forwards: 'forwarding rules',
   knownHosts: 'known hosts'

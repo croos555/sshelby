@@ -11,6 +11,7 @@ import { closeAllSftp } from './sftp'
 import { autoStartForwards, stopAllForwards } from './forwards'
 import './prompts'
 import './transfer'
+import { lockAll } from './keepass'
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -174,6 +175,7 @@ app.on('before-quit', () => {
   closeAllSessions()
   closeAllSftp()
   stopAllForwards()
+  lockAll()
 })
 
 app.on('window-all-closed', () => {

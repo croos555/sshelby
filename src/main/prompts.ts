@@ -32,9 +32,10 @@ export async function askSecret(title: string, message: string, offerSave = fals
 export async function askSecretEx(
   title: string,
   message: string,
-  offerSave: boolean
+  offerSave: boolean,
+  saveLabel?: string
 ): Promise<{ value: string | null; save: boolean }> {
-  const res = await ask({ kind: 'password', title, message, offerSave })
+  const res = await ask({ kind: 'password', title, message, offerSave, saveLabel })
   if (!('values' in res) || !res.values) return { value: null, save: false }
   return { value: res.values[0], save: !!res.save }
 }

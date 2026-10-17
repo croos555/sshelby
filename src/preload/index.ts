@@ -105,6 +105,14 @@ const api = {
     pick: (dirs: boolean): Promise<string[]> => ipcRenderer.invoke('dialog:pickFiles', dirs)
   },
 
+  keepass: {
+    entries: (id: string): Promise<{ uuid: string; title: string; username: string; url: string; path: string }[]> =>
+      ipcRenderer.invoke('keepass:entries', id),
+    lock: (id: string): Promise<void> => ipcRenderer.invoke('keepass:lock', id),
+    isUnlocked: (id: string): Promise<boolean> => ipcRenderer.invoke('keepass:isUnlocked', id),
+    pickFile: (kind: 'db' | 'key'): Promise<string | null> => ipcRenderer.invoke('keepass:pickFile', kind)
+  },
+
   transfer: {
     preview: (sel: ExportSelection): Promise<Record<string, number>> => ipcRenderer.invoke('transfer:preview', sel),
     exportFile: (sel: ExportSelection, passphrase: string): Promise<boolean> =>

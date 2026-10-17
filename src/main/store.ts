@@ -9,7 +9,8 @@ const SECRET_FIELDS: Partial<Record<Collection, string[]>> = {
   hosts: ['password'],
   groups: ['password'],
   keys: ['privateKey', 'passphrase'],
-  identities: ['password']
+  identities: ['password'],
+  keepass: ['masterPassword']
 }
 
 const ENC_PREFIX = 'enc:v1:'
@@ -35,6 +36,7 @@ function emptyVault(): Vault {
     hosts: [],
     keys: [],
     identities: [],
+    keepass: [],
     forwards: [],
     snippets: [],
     knownHosts: [],
@@ -119,6 +121,9 @@ class Store {
       for (const h of this.vault.hosts) if (h.keyId === id) h.keyId = null
       for (const g of this.vault.groups) if (g.keyId === id) g.keyId = null
       for (const i of this.vault.identities) if (i.keyId === id) i.keyId = null
+    }
+    if (col === 'keepass') {
+      for (const i of this.vault.identities) if (i.keepassDbId === id) i.keepassDbId = null
     }
     if (col === 'identities') {
       for (const h of this.vault.hosts) if (h.identityId === id) h.identityId = null

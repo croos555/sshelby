@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, EyeOff, IdCard, KeyRound, Lock, Pencil, Save, User } from 'lucide-react'
+import { Database, Eye, EyeOff, IdCard, KeyRound, Lock, Pencil, Save, User } from 'lucide-react'
 import { errMsg, useStore } from '../store'
 import { Field, promptDialog, Select } from './ui'
 
@@ -43,18 +43,23 @@ export default function Credentials({ value, onChange }: { value: CredValue; onC
         icon={IdCard}
         value={value.identityId}
         onChange={(v) => onChange({ identityId: v })}
-        options={vault.identities.map((i) => ({ value: i.id, label: `${i.label} (${i.username})` }))}
+        options={vault.identities.map((i) => ({
+          value: i.id,
+          label: i.authType === 'keepass' ? `${i.label} (KeePass)` : `${i.label} (${i.username})`
+        }))}
         placeholder="No identity: enter credentials below"
       />
       {identity ? (
         <div className="identity-summary">
-          {identity.authType === 'key' ? <KeyRound size={14} /> : <Lock size={14} />}
+          {identity.authType === 'key' ? <KeyRound size={14} /> : identity.authType === 'keepass' ? <Database size={14} /> : <Lock size={14} />}
           <div className="grow">
-            <div>{identity.username}</div>
+            <div>{identity.username || identity.label}</div>
             <div className="hint">
               {identity.authType === 'key'
                 ? `Key: ${vault.keys.find((k) => k.id === identity.keyId)?.label || 'missing'}`
-                : identity.password
+                : identity.authType === 'keepass'
+                  ? `KeePass: ${identity.keepassEntryLabel || 'no entry'}`
+                  : identity.password
                   ? 'Password saved'
                   : 'Password asked on connect'}
             </div>

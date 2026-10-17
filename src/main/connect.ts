@@ -3,6 +3,7 @@ import { Host } from '@shared/types'
 import { notifyVaultChanged, store } from './store'
 import { ask, askSecret, askSecretEx } from './prompts'
 import { blobKeyType, fingerprintBlob } from './keys'
+import { keepassCredentials } from './keepass'
 
 export interface ResolvedHost {
   host: Host
@@ -14,6 +15,8 @@ export interface ResolvedHost {
   jumpHostId?: string | null
   // Credentials come from a shared identity: don't offer to save typed passwords onto the host
   viaIdentity: boolean
+  // Username/password fetched from a KeePass entry at connect time
+  keepass?: { dbId: string; entryUuid: string }
 }
 
 interface CredLevel {
@@ -31,25 +34,34 @@ export function resolveHost(hostId: string): ResolvedHost {
   if (!host) throw new Error('Host not found')
   const r: ResolvedHost = { host, address: host.address, port: host.port || 0, jumpHostId: host.jumpHostId, viaIdentity: false }
   let haveSecret = false
+  let haveUser = false
 
   const apply = (level: CredLevel) => {
     let { username, password, keyId } = level
     let fromIdentity = false
+    let keepass: ResolvedHost['keepass']
     const idn = level.identityId ? vault.identities.find((i) => i.id === level.identityId) : undefined
     if (idn) {
-      username = idn.username
+      fromIdentity = true
+      username = idn.username || undefined
       password = idn.authType === 'password' ? idn.password : undefined
       keyId = idn.authType === 'key' ? idn.keyId : undefined
-      fromIdentity = true
+      if (idn.authType === 'keepass') {
+        if (!idn.keepassDbId || !idn.keepassEntryUuid) throw new Error(`Identity “${idn.label}” has no KeePass entry selected`)
+        keepass = { dbId: idn.keepassDbId, entryUuid: idn.keepassEntryUuid }
+      }
     }
-    if (!r.username && username) {
+    // A KeePass identity claims the username slot too: the entry's username is used unless overridden
+    if (!haveUser && (username || keepass)) {
       r.username = username
+      haveUser = true
       r.viaIdentity ||= fromIdentity
     }
     // An identity claims the secret slot even without a saved password (it is then asked on connect)
     if (!haveSecret && (password || keyId || fromIdentity)) {
       r.password = password
       r.keyId = keyId
+      r.keepass = keepass
       haveSecret = true
       r.viaIdentity ||= fromIdentity
     }
@@ -110,6 +122,12 @@ function makeHostVerifier(address: string, port: number) {
 }
 
 async function buildAuth(r: ResolvedHost, log: Log) {
+  if (r.keepass) {
+    log('Reading credentials from KeePass…')
+    const kp = await keepassCredentials(r.keepass.dbId, r.keepass.entryUuid)
+    r.username ||= kp.username
+    r.password = kp.password
+  }
   // Credentials typed at a prompt with "save" ticked, written to the host once auth succeeds
   const toSave: { username?: string; password?: string } = {}
   let username = r.username

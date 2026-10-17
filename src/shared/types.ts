@@ -47,14 +47,29 @@ export interface SshKey {
   createdAt: number
 }
 
-// Reusable credential: a username plus either a password or an SSH key
+// Reusable credential: a username plus a password, an SSH key, or a KeePass entry
 export interface Identity {
   id: string
   label: string
+  // For KeePass identities this optionally overrides the entry's username
   username: string
-  authType: 'password' | 'key'
+  authType: 'password' | 'key' | 'keepass'
   password?: string
   keyId?: string | null
+  keepassDbId?: string | null
+  keepassEntryUuid?: string | null
+  // Display only ("Servers / dev2 root"); the uuid is what is resolved
+  keepassEntryLabel?: string
+  createdAt: number
+}
+
+export interface KeepassDb {
+  id: string
+  label: string
+  path: string
+  keyFilePath?: string
+  // Only set when the user chose to remember it (encrypted with the OS keychain)
+  masterPassword?: string
   createdAt: number
 }
 
@@ -107,13 +122,22 @@ export interface Vault {
   hosts: Host[]
   keys: SshKey[]
   identities: Identity[]
+  keepass: KeepassDb[]
   forwards: PortForward[]
   snippets: Snippet[]
   knownHosts: KnownHost[]
   settings: Settings
 }
 
-export type Collection = 'groups' | 'hosts' | 'keys' | 'identities' | 'forwards' | 'snippets' | 'knownHosts'
+export type Collection =
+  | 'groups'
+  | 'hosts'
+  | 'keys'
+  | 'identities'
+  | 'keepass'
+  | 'forwards'
+  | 'snippets'
+  | 'knownHosts'
 
 export const DEFAULT_SETTINGS: Settings = {
   appearance: 'system',
@@ -144,8 +168,9 @@ export type PromptRequest =
       kind: 'password'
       title: string
       message: string
-      // Show a "save to host" checkbox
+      // Show a "save" checkbox, labelled saveLabel (default "Save to host")
       offerSave?: boolean
+      saveLabel?: string
     }
   | {
       id: string

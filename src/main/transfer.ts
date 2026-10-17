@@ -74,6 +74,10 @@ function collect(sel: ExportSelection): Payload {
     hosts,
     keys: v.keys.filter((k) => keyIds.has(k.id)),
     identities,
+    // Database location only; the master password stays on this machine
+    keepass: v.keepass
+      .filter((k) => identities.some((i) => i.keepassDbId === k.id))
+      .map(({ masterPassword, ...k }) => k),
     snippets: v.snippets.filter((s) => snippetIds.has(s.id)),
     forwards: sel.includeForwards ? v.forwards.filter((f) => hostIds.has(f.hostId)) : [],
     knownHosts: v.knownHosts.filter((k) => addrs.has(k.host))
@@ -100,13 +104,22 @@ function merge(p: Payload): ImportSummary {
     count('keys', !existing)
   }
 
+  const keepassMap = new Map<string, string>()
+  for (const k of p.keepass || []) {
+    const existing = v.keepass.find((x) => x.path === k.path || x.label === k.label)
+    const saved = existing || store.upsert('keepass', { ...k, id: randomUUID(), masterPassword: undefined })
+    keepassMap.set(k.id, saved.id)
+    if (!existing) count('keepass', true)
+  }
+
   const identityMap = new Map<string, string>()
   for (const i of p.identities || []) {
     const existing = v.identities.find((x) => x.label === i.label && x.username === i.username)
     const saved = store.upsert('identities', {
       ...i,
       id: existing?.id || randomUUID(),
-      keyId: i.keyId ? keyMap.get(i.keyId) || null : null
+      keyId: i.keyId ? keyMap.get(i.keyId) || null : null,
+      keepassDbId: i.keepassDbId ? keepassMap.get(i.keepassDbId) || null : null
     })
     identityMap.set(i.id, saved.id)
     count('identities', !existing)
