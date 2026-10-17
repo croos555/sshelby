@@ -4,6 +4,8 @@ import type { Snippet } from '@shared/types'
 import { errMsg, useStore } from '../store'
 import { confirmDialog, ContextMenu, Empty, Field, Panel, Segmented, Select, Switch, useMenu } from '../components/ui'
 import { THEMES } from '../themes'
+import { compileRules, DEFAULT_RULES } from '../highlight'
+import type { HighlightRule } from '@shared/types'
 
 // ---------------- Snippets ----------------
 
@@ -306,6 +308,9 @@ export function SettingsView() {
             </label>
           </div>
 
+          <div className="section-title">Keyword highlighting</div>
+          <HighlightSettings />
+
           <div className="section-title">SSH agent</div>
           <div className="psection">
             <p className="hint">
@@ -372,6 +377,129 @@ export function SettingsView() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+const COLOR_HEX: Record<string, string> = {
+  red: '#d6453d',
+  green: '#1f9d68',
+  yellow: '#c99a06',
+  blue: '#1f72d1',
+  magenta: '#a24bc4',
+  cyan: '#14a3b8',
+  gray: '#7b8494',
+  'bright-red': '#ff5c5c',
+  'bright-green': '#3ccf7e',
+  'bright-yellow': '#f2c037',
+  'bright-blue': '#4ea6ff',
+  'bright-magenta': '#e070e8',
+  'bright-cyan': '#3fd0d4'
+}
+
+const SAMPLE = '2026-10-17 10:15:49 ERROR connect to 10.0.2.5:5432 failed, retrying (warning: timeout) … OK'
+
+function HighlightSettings() {
+  const { vault, saveSettings } = useStore()
+  if (!vault) return null
+  const s = vault.settings
+  const rules = s.highlightRules || DEFAULT_RULES
+  const setRules = (next: HighlightRule[]) => saveSettings({ highlightRules: next })
+  const patch = (id: string, p: Partial<HighlightRule>) => setRules(rules.map((r) => (r.id === id ? { ...r, ...p } : r)))
+
+  // Preview: run the sample through the same matcher and render spans
+  const preview = (() => {
+    const compiled = compileRules(s.highlight ? rules : [])
+    const marks: { start: number; end: number; color: string; bold: boolean }[] = []
+    compiled.forEach((c, i) => {
+      const rule = rules.filter((r) => r.enabled && r.pattern)[i]
+      c.re.lastIndex = 0
+      for (let m = c.re.exec(SAMPLE); m; m = c.re.exec(SAMPLE)) {
+        const start = m.index
+        const end = start + m[0].length
+        if (end > start && !marks.some((x) => start < x.end && end > x.start))
+          marks.push({ start, end, color: COLOR_HEX[rule?.color] || '#d6453d', bold: !!rule?.bold })
+      }
+    })
+    marks.sort((a, b) => a.start - b.start)
+    const out: React.ReactNode[] = []
+    let pos = 0
+    marks.forEach((mk, i) => {
+      out.push(SAMPLE.slice(pos, mk.start))
+      out.push(
+        <span key={i} style={{ color: mk.color, fontWeight: mk.bold ? 700 : undefined }}>
+          {SAMPLE.slice(mk.start, mk.end)}
+        </span>
+      )
+      pos = mk.end
+    })
+    out.push(SAMPLE.slice(pos))
+    return out
+  })()
+
+  return (
+    <div className="psection">
+      <label className="row">
+        <span>Color keywords in terminal output</span>
+        <Switch on={s.highlight} onChange={(v) => saveSettings({ highlight: v })} />
+      </label>
+      <p className="hint">
+        Errors, warnings, IPs, dates… even on servers that don’t color their output. Text a program already colors, and
+        full-screen apps (vim, htop, less), are left untouched.
+      </p>
+      <div className="hl-preview mono">{preview}</div>
+      {s.highlight && (
+        <>
+          <div className="hl-rules">
+            {rules.map((r) => (
+              <div key={r.id} className="hl-rule">
+                <input type="checkbox" checked={r.enabled} onChange={(e) => patch(r.id, { enabled: e.target.checked })} />
+                <input className="hl-label" value={r.label} onChange={(e) => patch(r.id, { label: e.target.value })} />
+                <input
+                  className="hl-pattern mono"
+                  value={r.pattern}
+                  spellCheck={false}
+                  title="Regular expression"
+                  onChange={(e) => patch(r.id, { pattern: e.target.value })}
+                />
+                <select value={r.color} onChange={(e) => patch(r.id, { color: e.target.value })} style={{ color: COLOR_HEX[r.color] }}>
+                  {Object.keys(COLOR_HEX).map((c) => (
+                    <option key={c} value={c} style={{ color: COLOR_HEX[c] }}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <button className={`hl-flag ${r.bold ? 'on' : ''}`} title="Bold" onClick={() => patch(r.id, { bold: !r.bold })}>
+                  B
+                </button>
+                <button
+                  className={`hl-flag ${r.caseSensitive ? 'on' : ''}`}
+                  title="Case sensitive"
+                  onClick={() => patch(r.id, { caseSensitive: !r.caseSensitive })}
+                >
+                  Aa
+                </button>
+                <button className="icon-btn" title="Delete rule" onClick={() => setRules(rules.filter((x) => x.id !== r.id))}>
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="row">
+            <button
+              className="btn soft"
+              onClick={() =>
+                setRules([...rules, { id: crypto.randomUUID(), label: 'New rule', pattern: '', color: 'bright-cyan', enabled: true }])
+              }
+            >
+              <Plus size={14} /> Add rule
+            </button>
+            <button className="btn" onClick={() => saveSettings({ highlightRules: undefined })}>
+              Reset to defaults
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

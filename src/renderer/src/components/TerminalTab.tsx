@@ -8,6 +8,7 @@ import { Tab, useStore } from '../store'
 import { getTheme, THEMES, TermTheme } from '../themes'
 import type { HostStats } from '@shared/types'
 import StatusBar from './StatusBar'
+import { DEFAULT_RULES, Highlighter } from '../highlight'
 
 const isMac = window.api.platform === 'darwin'
 
@@ -26,6 +27,10 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
   const [themeScope, setThemeScope] = useState<'host' | 'default'>('host')
   const hostTheme = vault!.hosts.find((h) => h.id === tab.hostId)?.theme
   const [stats, setStats] = useState<HostStats | null>(null)
+  const highlighter = useRef(new Highlighter())
+  useEffect(() => {
+    highlighter.current.setRules(settings.highlight ? settings.highlightRules || DEFAULT_RULES : [])
+  }, [settings.highlight, settings.highlightRules])
   const showBar = settings.statusBar && status.s === 'connected'
 
   // Poll remote resources only for the visible, connected tab
@@ -100,7 +105,10 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
     })
 
     const offData = window.api.ssh.onData(({ sessionId: id, data }) => {
-      if (id === sessionId.current) t.write(data)
+      if (id !== sessionId.current) return
+      // The highlighter also tracks colors/alt screen while disabled so turning it on mid-session is safe
+      const out = highlighter.current.process(data)
+      t.write(useStore.getState().vault?.settings.highlight ? out : data)
     })
     const offStatus = window.api.ssh.onStatus(({ sessionId: id, status, message }) => {
       if (id !== sessionId.current) return
@@ -337,6 +345,14 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
                     <b>{settings.fontSize}</b>
                     <button onClick={() => saveSettings({ fontSize: Math.min(32, settings.fontSize + 1) })}>+</button>
                   </div>
+                  <label className="font-row">
+                    <span>Highlight keywords</span>
+                    <input
+                      type="checkbox"
+                      checked={settings.highlight}
+                      onChange={(e) => saveSettings({ highlight: e.target.checked })}
+                    />
+                  </label>
                   <label className="font-row">
                     <span>Status bar</span>
                     <input

@@ -1665,3 +1665,102 @@ textarea.input {
   opacity: 1;
   background: color-mix(in srgb, var(--sb-fg) 12%, transparent);
 }
+
+/* ---------- remote file editor ---------- */
+
+.editor-tab {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+}
+.editor-tab.hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+.editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--toolbar);
+  border-bottom: 1px solid var(--border);
+}
+.editor-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+.editor-host {
+  flex: 1;
+  min-height: 0;
+  user-select: text;
+}
+.editor-host .cm-editor {
+  height: 100%;
+}
+.editor-host .cm-editor.cm-focused {
+  outline: none;
+}
+
+/* ---------- keyword highlighting settings ---------- */
+
+.hl-preview {
+  background: #141729;
+  color: #d6dbe5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  user-select: text;
+}
+.hl-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.hl-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hl-rule input:not([type='checkbox']),
+.hl-rule select {
+  height: 28px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input);
+  padding: 0 7px;
+  outline: none;
+  font-size: 12px;
+}
+.hl-label {
+  width: 110px;
+}
+.hl-pattern {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px !important;
+}
+.hl-rule select {
+  width: 120px;
+}
+.hl-flag {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+}
+.hl-flag.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}

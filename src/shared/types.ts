@@ -121,6 +121,19 @@ export interface Settings {
   agentPath: string
   // Remote CPU / RAM / disk bar under terminals
   statusBar: boolean
+  // Color keywords (errors, warnings, IPs…) in terminal output; rules empty = built-in defaults
+  highlight: boolean
+  highlightRules?: HighlightRule[]
+}
+
+export interface HighlightRule {
+  id: string
+  label: string
+  pattern: string // regex source
+  color: string // ANSI color name (red, bright-yellow…)
+  bold?: boolean
+  caseSensitive?: boolean
+  enabled: boolean
 }
 
 export interface Vault {
@@ -155,7 +168,8 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultLocalPath: '',
   agentSource: 'auto',
   agentPath: '',
-  statusBar: true
+  statusBar: true,
+  highlight: false
 }
 
 // ---- Interactive prompts raised by the main process during connection ----

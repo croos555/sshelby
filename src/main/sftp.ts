@@ -1,6 +1,6 @@
 import { ipcMain, shell, WebContents } from 'electron'
-import { promises as fsp, Stats } from 'fs'
-import { homedir } from 'os'
+import { FSWatcher, promises as fsp, rmSync, Stats, watch } from 'fs'
+import { homedir, tmpdir } from 'os'
 import { basename, dirname, join, posix } from 'path'
 import { randomUUID } from 'crypto'
 import { SFTPWrapper } from 'ssh2'
@@ -8,6 +8,11 @@ import { FileEntry, TransferProgress } from '@shared/types'
 import { connectHost, Connection } from './connect'
 
 interface SftpSession {
+  // Owner pane + open editors / external edits; the connection closes when this drops to 0
+  refs: number
+  watchers: FSWatcher[]
+  // Temp copies opened in local apps, removed when the session goes away
+  tempDirs: string[]
   conn: Connection
   sftp: SFTPWrapper
 }
@@ -35,17 +40,100 @@ ipcMain.handle('sftp:open', async (e, sftpId: string, hostId: string) => {
   const wc = e.sender
   const conn = await connectHost(hostId)
   const sftp = await p<SFTPWrapper>((cb) => conn.client.sftp(cb))
-  sftps.set(sftpId, { conn, sftp })
+  sftps.set(sftpId, { conn, sftp, refs: 1, watchers: [], tempDirs: [] })
   conn.client.on('close', () => {
+    const s = sftps.get(sftpId)
+    if (s) cleanup(s)
     sftps.delete(sftpId)
     if (!wc.isDestroyed()) wc.send('sftp:closed', sftpId)
   })
   return p<string>((cb) => sftp.realpath('.', cb))
 })
 
-ipcMain.on('sftp:close', (_e, sftpId: string) => {
-  sftps.get(sftpId)?.conn.close()
+function cleanup(s: SftpSession) {
+  for (const w of s.watchers) w.close()
+  s.watchers = []
+  for (const d of s.tempDirs) rmSync(d, { recursive: true, force: true })
+  s.tempDirs = []
+}
+
+function release(sftpId: string) {
+  const s = sftps.get(sftpId)
+  if (!s) return
+  if (--s.refs > 0) return
+  cleanup(s)
+  s.conn.close()
   sftps.delete(sftpId)
+}
+
+ipcMain.on('sftp:close', (_e, sftpId: string) => release(sftpId))
+ipcMain.on('sftp:retain', (_e, sftpId: string) => {
+  const s = sftps.get(sftpId)
+  if (s) s.refs++
+})
+
+// ---------- remote file editing ----------
+
+const MAX_EDIT_BYTES = 5 * 1024 * 1024
+
+async function readRemote(sftp: SFTPWrapper, path: string): Promise<{ data: Buffer; mtime: number; mode: number }> {
+  const st = await p<any>((cb) => sftp.stat(path, cb))
+  if ((st.mode & S_IFMT) === S_IFDIR) throw new Error('This is a folder')
+  if (st.size > MAX_EDIT_BYTES) throw new Error(`File is too large to edit here (${Math.round(st.size / 1048576)} MB, max 5 MB)`)
+  const data = await p<Buffer>((cb) => sftp.readFile(path, cb))
+  return { data, mtime: st.mtime, mode: st.mode }
+}
+
+ipcMain.handle('sftp:readText', async (_e, sftpId: string, path: string) => {
+  const { data, mtime } = await readRemote(get(sftpId).sftp, path)
+  // NUL bytes in the first 8 KB: treat as binary
+  if (data.subarray(0, 8192).includes(0)) throw new Error('Binary file: open it with a local app instead')
+  return { content: data.toString('utf8'), mtime }
+})
+
+// expectedMtime guards against overwriting a change made on the server since the file was opened
+ipcMain.handle('sftp:writeText', async (_e, sftpId: string, path: string, content: string, expectedMtime?: number) => {
+  const { sftp } = get(sftpId)
+  const st = await p<any>((cb) => sftp.stat(path, cb)).catch(() => null)
+  if (st && expectedMtime && st.mtime !== expectedMtime) {
+    throw new Error('CONFLICT: the file was modified on the server after you opened it')
+  }
+  // Keep the original permissions
+  await p((cb) => sftp.writeFile(path, Buffer.from(content, 'utf8'), st ? { mode: st.mode & 0o7777 } : {}, cb))
+  const after = await p<any>((cb) => sftp.stat(path, cb))
+  return { mtime: after.mtime }
+})
+
+// Download to a temp folder, open with the system's default app, upload back on every save
+ipcMain.handle('sftp:openExternal', async (e, sftpId: string, path: string) => {
+  const s = get(sftpId)
+  const wc = e.sender
+  const { data } = await readRemote(s.sftp, path)
+  const dir = await fsp.mkdtemp(join(tmpdir(), 'sshelby-edit-'))
+  s.tempDirs.push(dir)
+  const local = join(dir, posix.basename(path))
+  await fsp.writeFile(local, data)
+  let last = data
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const watcher = watch(dir, () => {
+    clearTimeout(timer)
+    // Editors often write in several steps (truncate, write, rename): wait for it to settle
+    timer = setTimeout(async () => {
+      try {
+        const now = await fsp.readFile(local)
+        if (now.equals(last)) return
+        last = now
+        await p((cb) => s.sftp.writeFile(path, now, cb))
+        if (!wc.isDestroyed()) wc.send('sftp:externalSaved', { path, ok: true })
+      } catch (err: any) {
+        if (!wc.isDestroyed()) wc.send('sftp:externalSaved', { path, ok: false, error: err?.message || String(err) })
+      }
+    }, 400)
+  })
+  s.watchers.push(watcher)
+  const err = await shell.openPath(local)
+  if (err) throw new Error(err)
+  return local
 })
 
 ipcMain.handle('sftp:list', async (_e, sftpId: string, dir: string): Promise<FileEntry[]> => {
@@ -253,6 +341,9 @@ ipcMain.handle('local:delete', async (_e, paths: string[]) => {
 ipcMain.handle('local:open', (_e, path: string) => shell.openPath(path))
 
 export function closeAllSftp() {
-  for (const s of sftps.values()) s.conn.close()
+  for (const s of sftps.values()) {
+    cleanup(s)
+    s.conn.close()
+  }
   sftps.clear()
 }

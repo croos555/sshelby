@@ -78,6 +78,13 @@ const api = {
   sftp: {
     open: (sftpId: string, hostId: string): Promise<string> => ipcRenderer.invoke('sftp:open', sftpId, hostId),
     close: (sftpId: string) => ipcRenderer.send('sftp:close', sftpId),
+    retain: (sftpId: string) => ipcRenderer.send('sftp:retain', sftpId),
+    readText: (sftpId: string, path: string): Promise<{ content: string; mtime: number }> =>
+      ipcRenderer.invoke('sftp:readText', sftpId, path),
+    writeText: (sftpId: string, path: string, content: string, expectedMtime?: number): Promise<{ mtime: number }> =>
+      ipcRenderer.invoke('sftp:writeText', sftpId, path, content, expectedMtime),
+    openExternal: (sftpId: string, path: string): Promise<string> => ipcRenderer.invoke('sftp:openExternal', sftpId, path),
+    onExternalSaved: (cb: (p: { path: string; ok: boolean; error?: string }) => void) => on('sftp:externalSaved', cb),
     list: (sftpId: string, dir: string): Promise<FileEntry[]> => ipcRenderer.invoke('sftp:list', sftpId, dir),
     realpath: (sftpId: string, path: string): Promise<string> => ipcRenderer.invoke('sftp:realpath', sftpId, path),
     mkdir: (sftpId: string, path: string): Promise<void> => ipcRenderer.invoke('sftp:mkdir', sftpId, path),

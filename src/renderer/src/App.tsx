@@ -9,6 +9,7 @@ import {
   Plus,
   Server,
   Settings as SettingsIcon,
+  FileText,
   X
 } from 'lucide-react'
 import { useStore, View } from './store'
@@ -19,8 +20,9 @@ import { KnownHostsView, SettingsView, SnippetEditor, SnippetsView } from './vie
 import { GroupEditor, HostEditor } from './components/HostEditor'
 import TerminalTab from './components/TerminalTab'
 import SftpTab from './components/SftpTab'
+import EditorTab from './components/EditorTab'
 import PromptModal from './components/PromptModal'
-import { ConfirmHost, HostIcon, PromptHost } from './components/ui'
+import { ConfirmHost, confirmDialog, HostIcon, PromptHost } from './components/ui'
 import { ExportModal, ImportModal } from './components/TransferModals'
 
 const NAV: { id: View; label: string; icon: typeof Server }[] = [
@@ -45,8 +47,18 @@ function useAppearance(appearance: 'system' | 'light' | 'dark' | undefined) {
 }
 
 export default function App() {
-  const { vault, load, view, setView, tabs, activeTab, setActiveTab, closeTab, editing, toast, openTab, modal, setModal } =
+  const { vault, load, view, setView, tabs, activeTab, setActiveTab, closeTab: rawCloseTab, editing, toast, openTab, modal, setModal } =
     useStore()
+  const closeTab = async (id: string) => {
+    const t = useStore.getState().tabs.find((x) => x.id === id)
+    if (
+      t?.kind === 'editor' &&
+      t.dirty &&
+      !(await confirmDialog({ title: 'Unsaved changes', message: `Close ${t.title} without saving?`, danger: true, confirm: 'Close' }))
+    )
+      return
+    rawCloseTab(id)
+  }
 
   useEffect(() => {
     load()
@@ -116,11 +128,14 @@ export default function App() {
             >
               {t.kind === 'sftp' ? (
                 <FolderSync size={14} />
+              ) : t.kind === 'editor' ? (
+                <FileText size={14} />
               ) : (
                 host ? <HostIcon host={host} size="xs" /> : <Server size={14} />
               )}
               <span className="title">{t.title}</span>
               {t.kind === 'ssh' && <span className={`dot ${t.status}`} />}
+              {t.kind === 'editor' && t.dirty && <span className="dot connecting" title="Unsaved changes" />}
               <span
                 className="close"
                 onClick={(e) => {
@@ -169,6 +184,8 @@ export default function App() {
           {tabs.map((t) =>
             t.kind === 'ssh' ? (
               <TerminalTab key={t.id} tab={t} active={activeTab === t.id} />
+            ) : t.kind === 'editor' ? (
+              <EditorTab key={t.id} tab={t} active={activeTab === t.id} />
             ) : (
               <SftpTab key={t.id} tab={t} active={activeTab === t.id} />
             )

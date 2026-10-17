@@ -21,6 +21,8 @@ import {
   Unplug,
   Upload,
   X,
+  FileEdit,
+  ExternalLink,
   CheckCircle2,
   AlertCircle,
   Loader2
@@ -279,7 +281,7 @@ type SortKey = 'name' | 'mtime' | 'size' | 'kind'
 
 function Pane(props: PaneProps) {
   const { state, otherState, index } = props
-  const { vault, notify } = useStore()
+  const { vault, notify, openEditor } = useStore()
   const [entries, setEntries] = useState<FileEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -389,7 +391,17 @@ function Pane(props: PaneProps) {
   const openEntry = (entry: FileEntry) => {
     if (entry.isDir) navigate(entry.path)
     else if (src.kind === 'local') window.api.local.open(entry.path)
-    else if (canSend) props.onTransfer([entry.path])
+    else openEditor(src.sftpId, src.hostId, entry.path)
+  }
+
+  const openLocalApp = async (entry: FileEntry) => {
+    if (src.kind !== 'remote') return
+    try {
+      await window.api.sftp.openExternal(src.sftpId, entry.path)
+      notify(`Opened ${entry.name}: saves are uploaded automatically`)
+    } catch (err) {
+      notify(errMsg(err), true)
+    }
   }
 
   const newFolder = async () => {
@@ -464,7 +476,11 @@ function Pane(props: PaneProps) {
     const paths = [...sel]
     const items: (MenuItem | '-')[] = []
     if (entry) {
-      items.push({ label: entry.isDir ? 'Open' : src.kind === 'local' ? 'Open' : 'Download', icon: FolderOpen, onClick: () => openEntry(entry) })
+      if (entry.isDir || src.kind === 'local') items.push({ label: 'Open', icon: FolderOpen, onClick: () => openEntry(entry) })
+      else {
+        items.push({ label: 'Edit', icon: FileEdit, onClick: () => openEntry(entry) })
+        items.push({ label: 'Open in local app', icon: ExternalLink, onClick: () => openLocalApp(entry) })
+      }
       if (canSend)
         items.push({
           label: `${sendLabel}${paths.length > 1 ? ` ${paths.length} items` : ''}`,

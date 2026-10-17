@@ -17,11 +17,15 @@ export type View = 'hosts' | 'keychain' | 'forwards' | 'snippets' | 'knownHosts'
 
 export interface Tab {
   id: string
-  kind: 'ssh' | 'sftp'
+  kind: 'ssh' | 'sftp' | 'editor'
   // ssh: the host; sftp: host preselected in the right-hand pane (optional)
   hostId?: string
   title: string
   status: 'connecting' | 'connected' | 'closed' | 'error'
+  // editor tabs: the SFTP session (kept alive while open) and the remote path
+  sftpId?: string
+  path?: string
+  dirty?: boolean
 }
 
 // What the right-hand editor panel is showing, if anything
@@ -55,6 +59,7 @@ interface State {
   setEditing(e: Editing): void
   setCurrentGroup(id: string | null): void
   openTab(kind: Tab['kind'], hostId?: string): void
+  openEditor(sftpId: string, hostId: string, path: string): void
   closeTab(id: string): void
   setActiveTab(id: string | null): void
   updateTab(id: string, patch: Partial<Tab>): void
@@ -106,6 +111,21 @@ export const useStore = create<State>((set, get) => ({
     }
     set((s) => ({ tabs: [...s.tabs, tab], activeTab: tab.id }))
   },
+  openEditor(sftpId, hostId, path) {
+    const existing = get().tabs.find((t) => t.kind === 'editor' && t.sftpId === sftpId && t.path === path)
+    if (existing) return set({ activeTab: existing.id })
+    window.api.sftp.retain(sftpId)
+    const tab: Tab = {
+      id: crypto.randomUUID(),
+      kind: 'editor',
+      hostId,
+      sftpId,
+      path,
+      title: path.split('/').pop() || path,
+      status: 'connected'
+    }
+    set((s) => ({ tabs: [...s.tabs, tab], activeTab: tab.id }))
+  },
   closeTab(id) {
     set((s) => {
       const idx = s.tabs.findIndex((t) => t.id === id)
@@ -132,6 +152,9 @@ window.api.forwards.statuses().then((list) =>
   useStore.setState({ forwardStatus: Object.fromEntries(list.map((x) => [x.forwardId, x])) })
 )
 window.api.vault.onChanged(() => useStore.getState().load())
+window.api.sftp.onExternalSaved((p) =>
+  useStore.getState().notify(p.ok ? `Uploaded ${p.path.split('/').pop()}` : `Upload failed: ${p.error}`, !p.ok)
+)
 window.api.sftp.onTransfer((t) => useStore.setState((s) => ({ transfers: { ...s.transfers, [t.transferId]: t } })))
 
 export function errMsg(err: unknown): string {
