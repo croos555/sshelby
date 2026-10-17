@@ -337,6 +337,14 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
                     <b>{settings.fontSize}</b>
                     <button onClick={() => saveSettings({ fontSize: Math.min(32, settings.fontSize + 1) })}>+</button>
                   </div>
+                  <label className="font-row">
+                    <span>Status bar</span>
+                    <input
+                      type="checkbox"
+                      checked={settings.statusBar}
+                      onChange={(e) => saveSettings({ statusBar: e.target.checked })}
+                    />
+                  </label>
                   <input
                     className="theme-search"
                     placeholder="Search themes"

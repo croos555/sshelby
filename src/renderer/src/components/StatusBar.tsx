@@ -77,7 +77,7 @@ export default function StatusBar({
           })}
         </>
       )}
-      <button className="sb-hide" title="Hide status bar (Settings → Terminal to show it again)" onClick={onHide}>
+      <button className="sb-hide" title="Hide status bar (show it again from the terminal side panel or Settings → Terminal)" onClick={onHide}>
         <X size={11} />
       </button>
     </div>
