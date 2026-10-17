@@ -297,6 +297,10 @@ export function SettingsView() {
               <Switch on={s.cursorBlink} onChange={(v) => saveSettings({ cursorBlink: v })} />
             </label>
             <label className="row">
+              <span>Status bar (remote CPU, RAM, disks)</span>
+              <Switch on={s.statusBar} onChange={(v) => saveSettings({ statusBar: v })} />
+            </label>
+            <label className="row">
               <span>Copy on select</span>
               <Switch on={s.copyOnSelect} onChange={(v) => saveSettings({ copyOnSelect: v })} />
             </label>

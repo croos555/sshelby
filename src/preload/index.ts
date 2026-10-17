@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, IpcRendererEvent, webUtils } from 'electron
 import type {
   Collection,
   FileEntry,
+  HostStats,
   ForwardStatus,
   PromptRequest,
   PromptResponse,
@@ -69,7 +70,9 @@ const api = {
     resize: (sessionId: string, cols: number, rows: number) => ipcRenderer.send('ssh:resize', sessionId, cols, rows),
     close: (sessionId: string) => ipcRenderer.send('ssh:close', sessionId),
     onData: (cb: (p: { sessionId: string; data: string }) => void) => on('ssh:data', cb),
-    onStatus: (cb: (p: SessionEvent) => void) => on('ssh:status', cb)
+    onStatus: (cb: (p: SessionEvent) => void) => on('ssh:status', cb),
+    stats: (sessionId: string, on: boolean) => ipcRenderer.send('ssh:stats', sessionId, on),
+    onStats: (cb: (p: { sessionId: string; stats: HostStats }) => void) => on('ssh:stats', cb)
   },
 
   sftp: {

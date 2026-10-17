@@ -119,6 +119,8 @@ export interface Settings {
   defaultLocalPath: string
   agentSource: 'auto' | 'pageant' | 'custom'
   agentPath: string
+  // Remote CPU / RAM / disk bar under terminals
+  statusBar: boolean
 }
 
 export interface Vault {
@@ -152,7 +154,8 @@ export const DEFAULT_SETTINGS: Settings = {
   copyOnSelect: false,
   defaultLocalPath: '',
   agentSource: 'auto',
-  agentPath: ''
+  agentPath: '',
+  statusBar: true
 }
 
 // ---- Interactive prompts raised by the main process during connection ----
@@ -198,6 +201,17 @@ export interface SessionEvent {
   sessionId: string
   status: SessionStatus
   message?: string
+}
+
+// ---- Status bar ----
+
+export interface HostStats {
+  cpu?: number // percent, needs two samples
+  cores?: number
+  load?: [number, number, number]
+  mem?: { used: number; total: number } // bytes
+  swap?: { used: number; total: number }
+  disks: { mount: string; used: number; total: number }[]
 }
 
 // ---- SFTP ----

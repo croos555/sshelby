@@ -4,8 +4,12 @@ import { ClientChannel } from 'ssh2'
 import { SessionStatus } from '@shared/types'
 import { connectHost, Connection } from './connect'
 import { notifyVaultChanged, store } from './store'
+import { CpuSample, parseStats, STATS_COMMAND } from './stats-core'
 
 interface Session {
+  statsTimer?: ReturnType<typeof setInterval>
+  cpuSample?: CpuSample
+  statsBusy?: boolean
   conn?: Connection
   stream?: ClientChannel
   closed: boolean
@@ -42,6 +46,7 @@ ipcMain.handle('ssh:open', async (e, sessionId: string, hostId: string, cols: nu
     stream.on('data', (d: Buffer) => send(wc, 'ssh:data', { sessionId, data: decoder.write(d) }))
     stream.stderr.on('data', (d: Buffer) => send(wc, 'ssh:data', { sessionId, data: errDecoder.write(d) }))
     stream.on('close', () => {
+      stopStats(session)
       conn.close()
       if (!session.closed) status(wc, sessionId, 'closed', 'Connection closed')
       sessions.delete(sessionId)
@@ -84,9 +89,48 @@ ipcMain.on('ssh:resize', (_e, sessionId: string, cols: number, rows: number) => 
   sessions.get(sessionId)?.stream?.setWindow(rows, cols, 0, 0)
 })
 
+// Status bar sampling: only while the tab is visible, one exec at a time on the session's connection
+function sampleStats(wc: WebContents, sessionId: string) {
+  const s = sessions.get(sessionId)
+  if (!s?.conn || s.statsBusy) return
+  s.statsBusy = true
+  s.conn.client.exec(STATS_COMMAND, (err, ch) => {
+    if (err) {
+      s.statsBusy = false
+      return
+    }
+    let out = ''
+    ch.on('data', (d: Buffer) => (out += d.toString()))
+    ch.stderr.on('data', () => {})
+    ch.on('close', () => {
+      s.statsBusy = false
+      const { stats, cpuSample } = parseStats(out, s.cpuSample)
+      s.cpuSample = cpuSample
+      send(wc, 'ssh:stats', { sessionId, stats })
+    })
+  })
+}
+
+function stopStats(s: Session) {
+  if (s.statsTimer) clearInterval(s.statsTimer)
+  s.statsTimer = undefined
+}
+
+ipcMain.on('ssh:stats', (e, sessionId: string, on: boolean) => {
+  const s = sessions.get(sessionId)
+  if (!s) return
+  stopStats(s)
+  if (!on) return
+  sampleStats(e.sender, sessionId)
+  // A quick second sample so CPU % shows up without waiting a full interval
+  setTimeout(() => sampleStats(e.sender, sessionId), 1500)
+  s.statsTimer = setInterval(() => sampleStats(e.sender, sessionId), 5000)
+})
+
 ipcMain.on('ssh:close', (_e, sessionId: string) => {
   const s = sessions.get(sessionId)
   if (!s) return
+  stopStats(s)
   s.closed = true
   s.stream?.close()
   s.conn?.close()

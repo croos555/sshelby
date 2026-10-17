@@ -6,6 +6,8 @@ import { SearchAddon } from '@xterm/addon-search'
 import { Braces, Palette, PanelRightClose, PanelRightOpen, RotateCw, X, Search } from 'lucide-react'
 import { Tab, useStore } from '../store'
 import { getTheme, THEMES, TermTheme } from '../themes'
+import type { HostStats } from '@shared/types'
+import StatusBar from './StatusBar'
 
 const isMac = window.api.platform === 'darwin'
 
@@ -23,6 +25,23 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
   const [themeQuery, setThemeQuery] = useState('')
   const [themeScope, setThemeScope] = useState<'host' | 'default'>('host')
   const hostTheme = vault!.hosts.find((h) => h.id === tab.hostId)?.theme
+  const [stats, setStats] = useState<HostStats | null>(null)
+  const showBar = settings.statusBar && status.s === 'connected'
+
+  // Poll remote resources only for the visible, connected tab
+  useEffect(() => {
+    if (!showBar || !active) return
+    const id = sessionId.current
+    const off = window.api.ssh.onStats((p) => p.sessionId === id && setStats(p.stats))
+    window.api.ssh.stats(id, true)
+    return () => {
+      off()
+      window.api.ssh.stats(id, false)
+    }
+  }, [showBar, active])
+  useEffect(() => {
+    if (status.s !== 'connected') setStats(null)
+  }, [status.s])
   const [findText, setFindText] = useState('')
 
   const connect = () => {
@@ -170,6 +189,7 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
 
   return (
     <div className={`session ${active ? '' : 'hidden'}`} style={{ background: theme.background }}>
+      <div className="term-col">
       <div
         className="term-wrap"
         onContextMenu={(e) => {
@@ -248,6 +268,10 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
             </div>
           </div>
         )}
+      </div>
+      {showBar && (
+        <StatusBar stats={stats} theme={theme} onHide={() => saveSettings({ statusBar: false })} />
+      )}
       </div>
       {side && (
         <div
