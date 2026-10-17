@@ -8,6 +8,8 @@ export interface Group {
   password?: string
   keyId?: string | null
   identityId?: string | null
+  // Take credentials from the parent group instead of the fields above
+  inheritCredentials?: boolean
   jumpHostId?: string | null
   createdAt: number
 }
@@ -22,6 +24,8 @@ export interface Host {
   keyId?: string | null
   // Reusable credentials from the keychain; takes over the inline username/password/key
   identityId?: string | null
+  // Take credentials from the group instead of the fields above (default when the host has none)
+  inheritCredentials?: boolean
   groupId?: string | null
   jumpHostId?: string | null
   tags: string[]

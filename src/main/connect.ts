@@ -1,5 +1,6 @@
 import { Client, ConnectConfig, utils } from 'ssh2'
 import { Host } from '@shared/types'
+import { usesParentCredentials } from '@shared/creds'
 import { notifyVaultChanged, store } from './store'
 import { ask, askSecret, askSecretEx } from './prompts'
 import { blobKeyType, fingerprintBlob } from './keys'
@@ -63,14 +64,15 @@ export function resolveHost(hostId: string): ResolvedHost {
     }
   }
 
-  apply(host)
+  // Levels set to "use parent credentials" contribute nothing; the root level always counts
+  if (!(host.groupId && usesParentCredentials(host))) apply(host)
   let gid = host.groupId
   const seen = new Set<string>()
   while (gid && !seen.has(gid)) {
     seen.add(gid)
     const g = vault.groups.find((x) => x.id === gid)
     if (!g) break
-    apply(g)
+    if (!(g.parentId && usesParentCredentials(g))) apply(g)
     r.port ||= g.port || 0
     r.jumpHostId ||= g.jumpHostId
     gid = g.parentId
@@ -198,7 +200,8 @@ async function buildAuth(r: ResolvedHost, log: Log) {
     if (!toSave.username && !toSave.password) return
     const host = store.get().hosts.find((h) => h.id === r.host.id)
     if (host) {
-      store.upsert('hosts', { ...host, ...toSave })
+      // Typed-and-saved credentials belong to the host from now on
+      store.upsert('hosts', { ...host, ...toSave, inheritCredentials: false })
       notifyVaultChanged()
     }
   }

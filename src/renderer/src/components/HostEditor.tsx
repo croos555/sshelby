@@ -190,7 +190,7 @@ export function HostEditor({ initial }: { initial: Partial<Host> }) {
           <span>port</span>
         </div>
         <h4>Credentials</h4>
-        <Credentials value={h} onChange={set} />
+        <Credentials value={h} onChange={set} parentGroupId={h.groupId} />
         <button className="link" style={{ color: 'var(--text-2)' }} onClick={() => setMore(!more)}>
           Show {more ? 'less' : 'more'} {more ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
@@ -298,7 +298,7 @@ export function GroupEditor({ initial }: { initial: Partial<Group> }) {
       </div>
       <div className="psection">
         <h4>Defaults for hosts in this group</h4>
-        <p className="hint">Hosts without their own credentials, port or jump host inherit these.</p>
+        <p className="hint">Hosts and subgroups set to “Use parent credentials” use these, as well as this port and jump host when they leave them empty.</p>
         <div className="row">
           <span>SSH on</span>
           <label className="input small">
@@ -310,7 +310,7 @@ export function GroupEditor({ initial }: { initial: Partial<Group> }) {
           </label>
           <span>port</span>
         </div>
-        <Credentials value={g} onChange={set} />
+        <Credentials value={g} onChange={set} parentGroupId={g.parentId} />
         <Select
           icon={Route}
           value={g.jumpHostId}

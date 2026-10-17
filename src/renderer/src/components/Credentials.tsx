@@ -1,20 +1,72 @@
 import { useState } from 'react'
-import { Usb, Eye, EyeOff, IdCard, KeyRound, Lock, Pencil, Save, User } from 'lucide-react'
+import { FolderInput, Usb, Eye, EyeOff, IdCard, KeyRound, Lock, Pencil, Save, User } from 'lucide-react'
 import { errMsg, useStore } from '../store'
-import { Field, promptDialog, Select } from './ui'
+import { Field, promptDialog, Select, Switch } from './ui'
+import { credentialSource, usesParentCredentials } from '@shared/creds'
 
 export interface CredValue {
   username?: string
   password?: string
   keyId?: string | null
   identityId?: string | null
+  inheritCredentials?: boolean
 }
 
 // Credentials block shared by the host and group editors: either a keychain identity or inline fields
-export default function Credentials({ value, onChange }: { value: CredValue; onChange: (patch: CredValue) => void }) {
+export default function Credentials({
+  value,
+  onChange,
+  parentGroupId
+}: {
+  value: CredValue
+  onChange: (patch: CredValue) => void
+  // Group whose credentials can be inherited; undefined for top-level items
+  parentGroupId?: string | null
+}) {
   const { vault, upsert, setEditing, notify } = useStore()
   const [showPw, setShowPw] = useState(false)
   if (!vault) return null
+  const inherit = !!parentGroupId && usesParentCredentials(value)
+  const source = parentGroupId ? credentialSource(vault.groups, parentGroupId) : undefined
+  const sourceIdentity = source?.identityId ? vault.identities.find((i) => i.id === source.identityId) : undefined
+  const describe = () => {
+    if (!source) return 'The parent groups have no credentials: you’ll be asked when connecting.'
+    if (sourceIdentity)
+      return `${sourceIdentity.username} · identity “${sourceIdentity.label}” (${
+        sourceIdentity.authType === 'agent' ? 'SSH agent' : sourceIdentity.authType === 'key' ? 'SSH key' : 'password'
+      })`
+    const parts = [source.username || 'no username']
+    if (source.keyId) parts.push(`key ${vault.keys.find((k) => k.id === source.keyId)?.label || ''}`.trim())
+    else if (source.password) parts.push('password')
+    return parts.join(' · ')
+  }
+
+  const inheritRow = parentGroupId && (
+    <label className="row" style={{ justifyContent: 'space-between' }}>
+      <span>Use parent credentials</span>
+      <Switch on={inherit} onChange={(v) => onChange({ inheritCredentials: v })} />
+    </label>
+  )
+
+  if (inherit) {
+    return (
+      <>
+        {inheritRow}
+        <div className="identity-summary">
+          <FolderInput size={14} />
+          <div className="grow">
+            <div>{source ? `From group “${source.name}”` : 'Nothing to inherit'}</div>
+            <div className="hint">{describe()}</div>
+          </div>
+          {source && (
+            <button className="icon-btn" title="Edit group" onClick={() => setEditing({ kind: 'group', item: source })}>
+              <Pencil size={13} />
+            </button>
+          )}
+        </div>
+      </>
+    )
+  }
   const identity = value.identityId ? vault.identities.find((i) => i.id === value.identityId) : undefined
   const canSaveAsIdentity = !!value.username && !!(value.password || value.keyId)
 
@@ -39,6 +91,7 @@ export default function Credentials({ value, onChange }: { value: CredValue; onC
 
   return (
     <>
+      {inheritRow}
       <Select
         icon={IdCard}
         value={value.identityId}

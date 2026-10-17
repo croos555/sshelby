@@ -23,6 +23,7 @@ import type { Group, Host } from '@shared/types'
 import { errMsg, useStore } from '../store'
 import { confirmDialog, ContextMenu, Empty, GroupIcon, HostIcon, useMenu } from '../components/ui'
 import { groupPath } from '../components/HostEditor'
+import { credentialSource, usesParentCredentials } from '@shared/creds'
 
 function parseQuick(q: string): Partial<Host> | null {
   // ssh user@host -p 2222 | user@host:2222 | host
@@ -71,6 +72,14 @@ export default function HostsView() {
   const countHosts = (gid: string): number =>
     vault.hosts.filter((h) => h.groupId === gid).length +
     vault.groups.filter((g) => g.parentId === gid).reduce((n, g) => n + countHosts(g.id), 0)
+
+  // ", user (identity)" for the subtitle, following "use parent credentials"
+  const credLabel = (h: Host): string => {
+    const holder = h.groupId && usesParentCredentials(h) ? credentialSource(vault.groups, h.groupId) : h
+    if (!holder) return ''
+    const idn = holder.identityId && vault.identities.find((i) => i.id === holder.identityId)
+    return idn ? `, ${idn.username} (${idn.label})` : holder.username ? `, ${holder.username}` : ''
+  }
 
   const crumbs: Group[] = []
   {
@@ -331,10 +340,7 @@ export default function HostsView() {
                         <div className="name">{h.label || h.address}</div>
                         <div className="sub">
                           ssh
-                          {(() => {
-                            const idn = h.identityId && vault.identities.find((i) => i.id === h.identityId)
-                            return idn ? `, ${idn.username} (${idn.label})` : h.username ? `, ${h.username}` : ''
-                          })()}
+                          {credLabel(h)}
                           {query && h.groupId ? ` · ${groupPath(vault.groups, h.groupId)}` : ''}
                           {h.tags?.length ? ` · ${h.tags.join(', ')}` : ''}
                         </div>
