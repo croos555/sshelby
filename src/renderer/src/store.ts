@@ -42,6 +42,8 @@ interface State {
   forwardStatus: Record<string, ForwardStatus>
   transfers: Record<string, TransferProgress>
   toast: { message: string; error?: boolean } | null
+  modal: 'export' | 'import' | null
+  setModal(m: 'export' | 'import' | null): void
 
   load(): Promise<void>
   upsert<T extends { id?: string; [k: string]: any }>(col: Collection, item: T): Promise<T & { id: string }>
@@ -69,6 +71,8 @@ export const useStore = create<State>((set, get) => ({
   forwardStatus: {},
   transfers: {},
   toast: null,
+  modal: null,
+  setModal: (modal) => set({ modal }),
 
   async load() {
     set({ vault: await window.api.vault.get() })

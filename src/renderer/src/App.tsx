@@ -21,6 +21,7 @@ import TerminalTab from './components/TerminalTab'
 import SftpTab from './components/SftpTab'
 import PromptModal from './components/PromptModal'
 import { ConfirmHost, PromptHost } from './components/ui'
+import { ExportModal, ImportModal } from './components/TransferModals'
 import { osBadge } from './themes'
 
 const NAV: { id: View; label: string; icon: typeof Server }[] = [
@@ -45,7 +46,8 @@ function useAppearance(appearance: 'system' | 'light' | 'dark' | undefined) {
 }
 
 export default function App() {
-  const { vault, load, view, setView, tabs, activeTab, setActiveTab, closeTab, editing, toast, openTab } = useStore()
+  const { vault, load, view, setView, tabs, activeTab, setActiveTab, closeTab, editing, toast, openTab, modal, setModal } =
+    useStore()
 
   useEffect(() => {
     load()
@@ -178,6 +180,8 @@ export default function App() {
         </div>
       </div>
 
+      {modal === 'export' && <ExportModal onClose={() => setModal(null)} />}
+      {modal === 'import' && <ImportModal onClose={() => setModal(null)} />}
       <PromptModal />
       <ConfirmHost />
       <PromptHost />

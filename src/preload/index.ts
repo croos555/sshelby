@@ -11,6 +11,26 @@ import type {
   Vault
 } from '@shared/types'
 
+interface ExportSelection {
+  groupIds: string[]
+  hostIds: string[]
+  includeForwards: boolean
+}
+interface ImportPreview {
+  exportedAt: number
+  groups: string[]
+  hosts: string[]
+  keys: number
+  snippets: number
+  forwards: number
+  knownHosts: number
+}
+interface ImportSummary {
+  created: number
+  updated: number
+  detail: Record<string, { created: number; updated: number }>
+}
+
 function on<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_e: IpcRendererEvent, payload: T) => cb(payload)
   ipcRenderer.on(channel, listener)
@@ -25,8 +45,7 @@ const api = {
     upsert: <T>(col: Collection, item: T): Promise<T & { id: string }> => ipcRenderer.invoke('vault:upsert', col, item),
     remove: (col: Collection, id: string): Promise<void> => ipcRenderer.invoke('vault:remove', col, id),
     settings: (patch: Partial<Settings>): Promise<Settings> => ipcRenderer.invoke('vault:settings', patch),
-    exportFile: (): Promise<boolean> => ipcRenderer.invoke('vault:export'),
-    importFile: (): Promise<boolean> => ipcRenderer.invoke('vault:import'),
+    storageInfo: (): Promise<{ encrypted: boolean; backend: string }> => ipcRenderer.invoke('vault:storageInfo'),
     importSshConfig: (): Promise<number> => ipcRenderer.invoke('vault:importSshConfig'),
     onChanged: (cb: () => void) => on('vault:changed', cb)
   },
@@ -83,6 +102,16 @@ const api = {
     open: (path: string): Promise<string> => ipcRenderer.invoke('local:open', path),
     pathForFile: (file: File): string => webUtils.getPathForFile(file),
     pick: (dirs: boolean): Promise<string[]> => ipcRenderer.invoke('dialog:pickFiles', dirs)
+  },
+
+  transfer: {
+    preview: (sel: ExportSelection): Promise<Record<string, number>> => ipcRenderer.invoke('transfer:preview', sel),
+    exportFile: (sel: ExportSelection, passphrase: string): Promise<boolean> =>
+      ipcRenderer.invoke('transfer:export', sel, passphrase),
+    pickImport: (): Promise<string | null> => ipcRenderer.invoke('transfer:pickImport'),
+    inspect: (path: string, passphrase: string): Promise<ImportPreview> => ipcRenderer.invoke('transfer:inspect', path, passphrase),
+    importFile: (path: string, passphrase: string): Promise<ImportSummary> =>
+      ipcRenderer.invoke('transfer:import', path, passphrase)
   },
 
   forwards: {

@@ -15,7 +15,9 @@ import {
   FolderSync,
   Trash2,
   ArrowDownAZ,
-  Clock
+  Clock,
+  Upload,
+  Download
 } from 'lucide-react'
 import type { Group, Host } from '@shared/types'
 import { errMsg, useStore } from '../store'
@@ -33,7 +35,7 @@ function parseQuick(q: string): Partial<Host> | null {
 }
 
 export default function HostsView() {
-  const { vault, editing, setEditing, openTab, upsert, remove, currentGroup, setCurrentGroup, notify, load } =
+  const { vault, editing, setEditing, openTab, upsert, remove, currentGroup, setCurrentGroup, notify, load, setModal } =
     useStore()
   const [query, setQuery] = useState('')
   const [layout, setLayout] = useState<'grid' | 'list'>('grid')
@@ -201,6 +203,13 @@ export default function HostsView() {
               </button>
               <button onClick={importSshConfig}>
                 <FileInput size={14} /> Import ~/.ssh/config
+              </button>
+              <hr />
+              <button onClick={() => setModal('export')}>
+                <Upload size={14} /> Export hosts…
+              </button>
+              <button onClick={() => setModal('import')}>
+                <Download size={14} /> Import hosts…
               </button>
             </div>
           )}

@@ -199,8 +199,21 @@ export function KnownHostsView() {
 
 // ---------------- Settings ----------------
 
+const BACKEND: Record<string, string> = {
+  keychain: 'the macOS Keychain',
+  dpapi: 'Windows DPAPI (tied to your Windows account)',
+  gnome_libsecret: 'GNOME Keyring (libsecret)',
+  kwallet: 'KWallet',
+  kwallet5: 'KWallet',
+  kwallet6: 'KWallet'
+}
+
 export function SettingsView() {
-  const { vault, saveSettings, notify, load } = useStore()
+  const { vault, saveSettings, notify, load, setModal } = useStore()
+  const [storage, setStorage] = useState<{ encrypted: boolean; backend: string } | null>(null)
+  useEffect(() => {
+    window.api.vault.storageInfo().then(setStorage)
+  }, [])
   if (!vault) return null
   const s = vault.settings
   const run = async (fn: () => Promise<unknown>, ok: string) => {
@@ -282,32 +295,29 @@ export function SettingsView() {
           <div className="section-title">Data</div>
           <div className="psection">
             <p className="hint">
-              Everything is stored locally on this computer. Passwords and private keys are encrypted with your operating
-              system’s keychain.
+              Everything is stored locally on this computer.{' '}
+              {storage &&
+                (storage.encrypted && storage.backend !== 'basic_text' ? (
+                  <>Passwords and private keys are encrypted with {BACKEND[storage.backend] || storage.backend}.</>
+                ) : (
+                  <span style={{ color: 'var(--danger)' }}>
+                    No system keyring is available: secrets are only obfuscated on disk. Install and unlock a keyring
+                    (GNOME Keyring or KWallet) to encrypt them.
+                  </span>
+                ))}
             </p>
             <div className="row" style={{ flexWrap: 'wrap' }}>
+              <button className="btn soft" onClick={() => setModal('export')}>
+                <Upload size={14} /> Export hosts…
+              </button>
+              <button className="btn soft" onClick={() => setModal('import')}>
+                <Download size={14} /> Import hosts…
+              </button>
               <button className="btn soft" onClick={() => run(() => window.api.vault.importSshConfig(), 'Imported ~/.ssh/config')}>
                 <FileInput size={14} /> Import ~/.ssh/config
               </button>
-              <button className="btn soft" onClick={() => run(() => window.api.vault.exportFile(), 'Vault exported')}>
-                <Download size={14} /> Export vault
-              </button>
-              <button
-                className="btn soft"
-                onClick={async () => {
-                  const ok = await confirmDialog({
-                    title: 'Import vault',
-                    message: 'This replaces all hosts, keys and settings with the content of the file.',
-                    danger: true,
-                    confirm: 'Choose file…'
-                  })
-                  if (ok) run(() => window.api.vault.importFile(), 'Vault imported')
-                }}
-              >
-                <Upload size={14} /> Import vault
-              </button>
             </div>
-            <p className="hint">The export file contains secrets in plain text. Keep it somewhere safe.</p>
+            <p className="hint">Exports are encrypted with a key you choose (AES-256-GCM, scrypt key derivation).</p>
           </div>
         </div>
       </div>

@@ -1234,3 +1234,29 @@ textarea.input {
     transform: rotate(360deg);
   }
 }
+
+.modal.wide {
+  width: 620px;
+}
+.tree {
+  background: var(--section);
+  border-radius: 8px;
+  max-height: 300px;
+  overflow: auto;
+  padding: 4px 0;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding-right: 10px;
+}
+.tree-row:hover {
+  background: var(--accent-soft);
+}
+.tree-row .hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+}

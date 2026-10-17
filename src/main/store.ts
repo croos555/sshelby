@@ -138,17 +138,6 @@ class Store {
       this.save()
     }
   }
-
-  exportPlain(): string {
-    return JSON.stringify(this.vault, null, 2)
-  }
-
-  importPlain(json: string): void {
-    const raw = JSON.parse(json)
-    const base = emptyVault()
-    this.vault = { ...base, ...raw, settings: { ...base.settings, ...(raw.settings || {}) } }
-    this.save()
-  }
 }
 
 export const store = new Store()

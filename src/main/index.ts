@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
@@ -10,6 +10,7 @@ import { closeAllSessions } from './sessions'
 import { closeAllSftp } from './sftp'
 import { autoStartForwards, stopAllForwards } from './forwards'
 import './prompts'
+import './transfer'
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -47,23 +48,10 @@ ipcMain.handle('vault:upsert', (_e, col: Collection, item: any) => store.upsert(
 ipcMain.handle('vault:remove', (_e, col: Collection, id: string) => store.remove(col, id))
 ipcMain.handle('vault:settings', (_e, patch: Partial<Settings>) => store.updateSettings(patch))
 
-ipcMain.handle('vault:export', async () => {
-  const res = await dialog.showSaveDialog({
-    title: 'Export vault',
-    defaultPath: 'sshelby-vault.json',
-    message: 'The export contains passwords and private keys in plain text.'
-  })
-  if (res.canceled || !res.filePath) return false
-  writeFileSync(res.filePath, store.exportPlain(), { mode: 0o600 })
-  return true
-})
-
-ipcMain.handle('vault:import', async () => {
-  const res = await dialog.showOpenDialog({ title: 'Import vault', filters: [{ name: 'JSON', extensions: ['json'] }] })
-  if (res.canceled || !res.filePaths[0]) return false
-  store.importPlain(readFileSync(res.filePaths[0], 'utf8'))
-  return true
-})
+ipcMain.handle('vault:storageInfo', () => ({
+  encrypted: safeStorage.isEncryptionAvailable(),
+  backend: process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : process.platform === 'darwin' ? 'keychain' : 'dpapi'
+}))
 
 // Import Host entries from ~/.ssh/config (wildcard patterns are skipped)
 ipcMain.handle('vault:importSshConfig', () => {
