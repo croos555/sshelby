@@ -11,10 +11,11 @@ import { closeAllSftp } from './sftp'
 import { autoStartForwards, stopAllForwards } from './forwards'
 import icon from '../../build/icon.png?asset'
 import './prompts'
+import { handOff, showSplash } from './splash'
 import './transfer'
 import './agent'
 
-function createWindow() {
+function createWindow(splash?: BrowserWindow) {
   const win = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -34,7 +35,8 @@ function createWindow() {
       sandbox: false
     }
   })
-  win.once('ready-to-show', () => win.show())
+  if (splash) handOff(splash, win)
+  else win.once('ready-to-show', () => win.show())
   // Auto-start forwards once the UI can answer host-key / password prompts
   win.webContents.once('did-finish-load', autoStartForwards)
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -169,8 +171,9 @@ ipcMain.handle('dialog:pickFiles', async (_e, dirs: boolean) => {
 app.whenReady().then(() => {
   // Packaged builds have the bundle icon; show it in the Dock during development too
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(icon)
+  const splash = showSplash()
   store.load()
-  createWindow()
+  createWindow(splash)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
