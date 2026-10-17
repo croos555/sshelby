@@ -14,7 +14,7 @@ export default function PromptModal() {
   const req = queue[0]
   useEffect(() => {
     setValues(req?.kind === 'keyboard-interactive' ? req.prompts.map(() => '') : [''])
-    // Remembering a KeePass master password is opt-in; saving host credentials is opt-out
+    // A custom save label means an opt-in save; saving host credentials is opt-out
     setRemember(!(req?.kind === 'password' && req.saveLabel))
   }, [req?.id])
 

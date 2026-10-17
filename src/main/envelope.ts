@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'crypto'
-import type { Group, Host, Identity, KeepassDb, KnownHost, PortForward, Snippet, SshKey } from '../shared/types'
+import type { Group, Host, Identity, KnownHost, PortForward, Snippet, SshKey } from '../shared/types'
 
 // Encrypted export file: JSON envelope around an AES-256-GCM payload whose key is derived
 // from the user's passphrase with scrypt. No Electron dependency so it can be tested with plain Node.
@@ -15,7 +15,6 @@ export interface Payload {
   keys: SshKey[]
   // Absent in files from before identities existed
   identities?: Identity[]
-  keepass?: KeepassDb[]
   snippets: Snippet[]
   forwards: PortForward[]
   knownHosts: KnownHost[]

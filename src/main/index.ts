@@ -12,7 +12,7 @@ import { autoStartForwards, stopAllForwards } from './forwards'
 import icon from '../../build/icon.png?asset'
 import './prompts'
 import './transfer'
-import { lockAll } from './keepass'
+import './agent'
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -180,7 +180,6 @@ app.on('before-quit', () => {
   closeAllSessions()
   closeAllSftp()
   stopAllForwards()
-  lockAll()
 })
 
 app.on('window-all-closed', () => {

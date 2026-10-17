@@ -3,7 +3,7 @@ import { Host } from '@shared/types'
 import { notifyVaultChanged, store } from './store'
 import { ask, askSecret, askSecretEx } from './prompts'
 import { blobKeyType, fingerprintBlob } from './keys'
-import { keepassCredentials } from './keepass'
+import { agentPath, makeAgent } from './agent'
 
 export interface ResolvedHost {
   host: Host
@@ -15,8 +15,8 @@ export interface ResolvedHost {
   jumpHostId?: string | null
   // Credentials come from a shared identity: don't offer to save typed passwords onto the host
   viaIdentity: boolean
-  // Username/password fetched from a KeePass entry at connect time
-  keepass?: { dbId: string; entryUuid: string }
+  // Authenticate with the SSH agent, optionally limited to one key
+  agent?: { fingerprint?: string | null }
 }
 
 interface CredLevel {
@@ -39,20 +39,16 @@ export function resolveHost(hostId: string): ResolvedHost {
   const apply = (level: CredLevel) => {
     let { username, password, keyId } = level
     let fromIdentity = false
-    let keepass: ResolvedHost['keepass']
+    let agent: ResolvedHost['agent']
     const idn = level.identityId ? vault.identities.find((i) => i.id === level.identityId) : undefined
     if (idn) {
       fromIdentity = true
       username = idn.username || undefined
       password = idn.authType === 'password' ? idn.password : undefined
       keyId = idn.authType === 'key' ? idn.keyId : undefined
-      if (idn.authType === 'keepass') {
-        if (!idn.keepassDbId || !idn.keepassEntryUuid) throw new Error(`Identity “${idn.label}” has no KeePass entry selected`)
-        keepass = { dbId: idn.keepassDbId, entryUuid: idn.keepassEntryUuid }
-      }
+      if (idn.authType === 'agent') agent = { fingerprint: idn.agentKeyFingerprint }
     }
-    // A KeePass identity claims the username slot too: the entry's username is used unless overridden
-    if (!haveUser && (username || keepass)) {
+    if (!haveUser && username) {
       r.username = username
       haveUser = true
       r.viaIdentity ||= fromIdentity
@@ -61,7 +57,7 @@ export function resolveHost(hostId: string): ResolvedHost {
     if (!haveSecret && (password || keyId || fromIdentity)) {
       r.password = password
       r.keyId = keyId
-      r.keepass = keepass
+      r.agent = agent
       haveSecret = true
       r.viaIdentity ||= fromIdentity
     }
@@ -122,12 +118,6 @@ function makeHostVerifier(address: string, port: number) {
 }
 
 async function buildAuth(r: ResolvedHost, log: Log) {
-  if (r.keepass) {
-    log('Reading credentials from KeePass…')
-    const kp = await keepassCredentials(r.keepass.dbId, r.keepass.entryUuid)
-    r.username ||= kp.username
-    r.password = kp.password
-  }
   // Credentials typed at a prompt with "save" ticked, written to the host once auth succeeds
   const toSave: { username?: string; password?: string } = {}
   let username = r.username
@@ -155,8 +145,11 @@ async function buildAuth(r: ResolvedHost, log: Log) {
     if (parsed instanceof Error) log(`Key "${key.label}" could not be loaded: ${parsed.message}`)
     else methods.push({ type: 'publickey', username, key: Array.isArray(parsed) ? parsed[0] : parsed })
   }
-  const agent = process.platform === 'win32' ? 'pageant' : process.env.SSH_AUTH_SOCK
-  if (agent && !key) methods.push({ type: 'agent', username, agent })
+  // Agent identity: only the agent (and the password prompt as last resort).
+  // Otherwise the agent is a fallback when no key is configured.
+  const agent = makeAgent(r.agent?.fingerprint)
+  if (r.agent && !agent) log('No SSH agent available (check Settings → SSH agent)')
+  if (agent && (r.agent || !key)) methods.push({ type: 'agent', username, agent })
   if (r.password) methods.push({ type: 'password', username, password: r.password })
   methods.push({
     type: 'keyboard-interactive',
@@ -209,7 +202,7 @@ async function buildAuth(r: ResolvedHost, log: Log) {
       notifyVaultChanged()
     }
   }
-  return { username, authHandler, agentForward: !!(r.host.agentForwarding && agent), agent, persist }
+  return { username, authHandler, agentForward: !!(r.host.agentForwarding && agentPath()), agent: agentPath(), persist }
 }
 
 export async function connectHost(hostId: string, log: Log = () => {}, depth = 0): Promise<Connection> {

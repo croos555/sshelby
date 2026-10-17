@@ -9,8 +9,7 @@ const SECRET_FIELDS: Partial<Record<Collection, string[]>> = {
   hosts: ['password'],
   groups: ['password'],
   keys: ['privateKey', 'passphrase'],
-  identities: ['password'],
-  keepass: ['masterPassword']
+  identities: ['password']
 }
 
 const ENC_PREFIX = 'enc:v1:'
@@ -36,7 +35,6 @@ function emptyVault(): Vault {
     hosts: [],
     keys: [],
     identities: [],
-    keepass: [],
     forwards: [],
     snippets: [],
     knownHosts: [],
@@ -79,6 +77,16 @@ class Store {
         decrypt
       )
       this.vault.settings.theme = this.vault.settings.theme.replace(/^termcraft-/, 'sshelby-')
+      // KeePass database reading was replaced by the SSH agent (KeePassXC's SSH agent integration)
+      delete (this.vault as any).keepass
+      for (const i of this.vault.identities as any[]) {
+        if (i.authType === 'keepass') {
+          i.authType = 'agent'
+          delete i.keepassDbId
+          delete i.keepassEntryUuid
+          delete i.keepassEntryLabel
+        }
+      }
     } catch (err) {
       // Keep the unreadable file around rather than silently overwriting it
       renameSync(this.file, this.file + '.corrupt-' + Date.now())
@@ -121,9 +129,6 @@ class Store {
       for (const h of this.vault.hosts) if (h.keyId === id) h.keyId = null
       for (const g of this.vault.groups) if (g.keyId === id) g.keyId = null
       for (const i of this.vault.identities) if (i.keyId === id) i.keyId = null
-    }
-    if (col === 'keepass') {
-      for (const i of this.vault.identities) if (i.keepassDbId === id) i.keepassDbId = null
     }
     if (col === 'identities') {
       for (const h of this.vault.hosts) if (h.identityId === id) h.identityId = null

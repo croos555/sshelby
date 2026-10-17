@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useStore, View } from './store'
 import HostsView from './views/HostsView'
-import KeychainView, { IdentityEditor, KeepassEditor, KeyEditor } from './views/KeychainView'
+import KeychainView, { IdentityEditor, KeyEditor } from './views/KeychainView'
 import ForwardsView, { ForwardEditor } from './views/ForwardsView'
 import { KnownHostsView, SettingsView, SnippetEditor, SnippetsView } from './views/MiscViews'
 import { GroupEditor, HostEditor } from './components/HostEditor'
@@ -85,8 +85,6 @@ export default function App() {
       <KeyEditor initial={editing.item} />
     ) : editing?.kind === 'identity' ? (
       <IdentityEditor initial={editing.item} />
-    ) : editing?.kind === 'keepass' ? (
-      <KeepassEditor initial={editing.item} />
     ) : editing?.kind === 'forward' ? (
       <ForwardEditor initial={editing.item} />
     ) : editing?.kind === 'snippet' ? (

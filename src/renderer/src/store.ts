@@ -5,7 +5,6 @@ import type {
   Group,
   Host,
   Identity,
-  KeepassDb,
   PortForward,
   Settings,
   SshKey,
@@ -31,7 +30,6 @@ export type Editing =
   | { kind: 'group'; item: Partial<Group> }
   | { kind: 'key'; item: Partial<SshKey> }
   | { kind: 'identity'; item: Partial<Identity> }
-  | { kind: 'keepass'; item: Partial<KeepassDb> }
   | { kind: 'forward'; item: Partial<PortForward> }
   | { kind: 'snippet'; item: Partial<Snippet> }
   | null

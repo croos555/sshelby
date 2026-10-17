@@ -47,31 +47,22 @@ export interface SshKey {
   createdAt: number
 }
 
-// Reusable credential: a username plus a password, an SSH key, or a KeePass entry
+// Reusable credential: a username plus a password, an SSH key, or keys from the SSH agent
+// (ssh-agent, KeePassXC's SSH agent, Pageant…)
 export interface Identity {
   id: string
   label: string
-  // For KeePass identities this optionally overrides the entry's username
   username: string
-  authType: 'password' | 'key' | 'keepass'
+  authType: 'password' | 'key' | 'agent'
   password?: string
   keyId?: string | null
-  keepassDbId?: string | null
-  keepassEntryUuid?: string | null
-  // Display only ("Servers / dev2 root"); the uuid is what is resolved
-  keepassEntryLabel?: string
+  // Agent identities: restrict to one key of the agent (SHA256 fingerprint); empty = any key
+  agentKeyFingerprint?: string | null
+  agentKeyLabel?: string
   createdAt: number
 }
 
-export interface KeepassDb {
-  id: string
-  label: string
-  path: string
-  keyFilePath?: string
-  // Only set when the user chose to remember it (encrypted with the OS keychain)
-  masterPassword?: string
-  createdAt: number
-}
+
 
 export type ForwardType = 'local' | 'remote' | 'dynamic'
 
@@ -114,6 +105,8 @@ export interface Settings {
   scrollback: number
   copyOnSelect: boolean
   defaultLocalPath: string
+  agentSource: 'auto' | 'pageant' | 'custom'
+  agentPath: string
 }
 
 export interface Vault {
@@ -122,7 +115,6 @@ export interface Vault {
   hosts: Host[]
   keys: SshKey[]
   identities: Identity[]
-  keepass: KeepassDb[]
   forwards: PortForward[]
   snippets: Snippet[]
   knownHosts: KnownHost[]
@@ -134,7 +126,6 @@ export type Collection =
   | 'hosts'
   | 'keys'
   | 'identities'
-  | 'keepass'
   | 'forwards'
   | 'snippets'
   | 'knownHosts'
@@ -147,7 +138,9 @@ export const DEFAULT_SETTINGS: Settings = {
   cursorBlink: true,
   scrollback: 10000,
   copyOnSelect: false,
-  defaultLocalPath: ''
+  defaultLocalPath: '',
+  agentSource: 'auto',
+  agentPath: ''
 }
 
 // ---- Interactive prompts raised by the main process during connection ----

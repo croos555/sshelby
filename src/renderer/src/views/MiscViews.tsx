@@ -211,6 +211,16 @@ const BACKEND: Record<string, string> = {
 export function SettingsView() {
   const { vault, saveSettings, notify, load, setModal } = useStore()
   const [storage, setStorage] = useState<{ encrypted: boolean; backend: string } | null>(null)
+  const [agentInfo, setAgentInfo] = useState('')
+  const testAgent = async () => {
+    const path = await window.api.agent.path()
+    try {
+      const keys = await window.api.agent.list()
+      setAgentInfo(`${path} · ${keys.length} key${keys.length === 1 ? '' : 's'}${keys.length ? ': ' + keys.map((k) => k.comment || k.type).join(', ') : ''}`)
+    } catch (err) {
+      setAgentInfo(errMsg(err))
+    }
+  }
   useEffect(() => {
     window.api.vault.storageInfo().then(setStorage)
   }, [])
@@ -290,6 +300,43 @@ export function SettingsView() {
               <span>Copy on select</span>
               <Switch on={s.copyOnSelect} onChange={(v) => saveSettings({ copyOnSelect: v })} />
             </label>
+          </div>
+
+          <div className="section-title">SSH agent</div>
+          <div className="psection">
+            <p className="hint">
+              Used by identities of type “SSH agent” and as a fallback for hosts without a key. KeePassXC users: enable
+              Settings → SSH Agent in KeePassXC, then “Add key to agent” on your entries.
+            </p>
+            <label className="row">
+              <span>Agent</span>
+              <div style={{ width: 300 }}>
+                <Segmented
+                  value={s.agentSource}
+                  onChange={(v) => saveSettings({ agentSource: v })}
+                  options={[
+                    { value: 'auto', label: 'Auto' },
+                    { value: 'pageant', label: 'Pageant' },
+                    { value: 'custom', label: 'Custom' }
+                  ]}
+                />
+              </div>
+            </label>
+            {s.agentSource === 'custom' && (
+              <Field
+                value={s.agentPath}
+                onChange={(v) => saveSettings({ agentPath: v })}
+                placeholder={window.api.platform === 'win32' ? '\\\\.\\pipe\\openssh-ssh-agent' : '/path/to/agent.sock'}
+              />
+            )}
+            <div className="row">
+              <span className="hint grow mono" style={{ fontSize: 11 }}>
+                {agentInfo}
+              </span>
+              <button className="btn soft" onClick={testAgent}>
+                Test
+              </button>
+            </div>
           </div>
 
           <div className="section-title">Data</div>

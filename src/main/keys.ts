@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 import { utils } from 'ssh2'
-import { KeyType } from '@shared/types'
+import type { KeyType } from '@shared/types'
 
 export function fingerprintBlob(blob: Buffer): string {
   return 'SHA256:' + createHash('sha256').update(blob).digest('base64').replace(/=+$/, '')
