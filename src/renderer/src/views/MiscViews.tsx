@@ -308,6 +308,18 @@ export function SettingsView() {
             </label>
           </div>
 
+          <div className="section-title">General</div>
+          <div className="psection">
+            <label className="row">
+              <span>Keep running when the window is closed</span>
+              <Switch on={s.keepRunningInBackground} onChange={(v) => saveSettings({ keepRunningInBackground: v })} />
+            </label>
+            <p className="hint">
+              Port forwards stay active in the background; reopen the window from the{' '}
+              {window.api.platform === 'darwin' ? 'Dock' : 'app launcher'}. Off: closing the window quits Sshelby.
+            </p>
+          </div>
+
           <div className="section-title">Keyword highlighting</div>
           <HighlightSettings />
 

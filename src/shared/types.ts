@@ -124,6 +124,8 @@ export interface Settings {
   // Color keywords (errors, warnings, IPs…) in terminal output; rules empty = built-in defaults
   highlight: boolean
   highlightRules?: HighlightRule[]
+  // Keep the app (and its port forwards) alive when the last window is closed
+  keepRunningInBackground: boolean
 }
 
 export interface HighlightRule {
@@ -169,7 +171,8 @@ export const DEFAULT_SETTINGS: Settings = {
   agentSource: 'auto',
   agentPath: '',
   statusBar: true,
-  highlight: false
+  highlight: false,
+  keepRunningInBackground: false
 }
 
 // ---- Interactive prompts raised by the main process during connection ----

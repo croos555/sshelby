@@ -168,6 +168,19 @@ ipcMain.handle('dialog:pickFiles', async (_e, dirs: boolean) => {
 
 // ---------- lifecycle ----------
 
+// One instance only: a second launch brings back (or reopens) the window of the running one
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) return createWindow()
+    if (win.isMinimized()) win.restore()
+    win.show()
+    win.focus()
+  })
+}
+
 app.whenReady().then(() => {
   // Packaged builds have the bundle icon; show it in the Dock during development too
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(icon)
@@ -185,6 +198,7 @@ app.on('before-quit', () => {
   stopAllForwards()
 })
 
+// Closing the window quits, on macOS too, unless the user wants port forwards to keep running in the background
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  if (!store.get().settings.keepRunningInBackground) app.quit()
 })
