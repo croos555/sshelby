@@ -12,33 +12,59 @@ export interface ResolvedHost {
   password?: string
   keyId?: string | null
   jumpHostId?: string | null
+  // Credentials come from a shared identity: don't offer to save typed passwords onto the host
+  viaIdentity: boolean
 }
 
-// Walk the group chain so empty host fields inherit from the nearest group that sets them
+interface CredLevel {
+  username?: string
+  password?: string
+  keyId?: string | null
+  identityId?: string | null
+}
+
+// Walk host → parent groups. Username and the secret (password or key) are taken from the
+// nearest level that sets them; at each level an identity replaces that level's inline fields.
 export function resolveHost(hostId: string): ResolvedHost {
   const vault = store.get()
   const host = vault.hosts.find((h) => h.id === hostId)
   if (!host) throw new Error('Host not found')
-  const r: ResolvedHost = {
-    host,
-    address: host.address,
-    port: host.port || 0,
-    username: host.username,
-    password: host.password,
-    keyId: host.keyId,
-    jumpHostId: host.jumpHostId
+  const r: ResolvedHost = { host, address: host.address, port: host.port || 0, jumpHostId: host.jumpHostId, viaIdentity: false }
+  let haveSecret = false
+
+  const apply = (level: CredLevel) => {
+    let { username, password, keyId } = level
+    let fromIdentity = false
+    const idn = level.identityId ? vault.identities.find((i) => i.id === level.identityId) : undefined
+    if (idn) {
+      username = idn.username
+      password = idn.authType === 'password' ? idn.password : undefined
+      keyId = idn.authType === 'key' ? idn.keyId : undefined
+      fromIdentity = true
+    }
+    if (!r.username && username) {
+      r.username = username
+      r.viaIdentity ||= fromIdentity
+    }
+    // An identity claims the secret slot even without a saved password (it is then asked on connect)
+    if (!haveSecret && (password || keyId || fromIdentity)) {
+      r.password = password
+      r.keyId = keyId
+      haveSecret = true
+      r.viaIdentity ||= fromIdentity
+    }
   }
+
+  apply(host)
   let gid = host.groupId
   const seen = new Set<string>()
   while (gid && !seen.has(gid)) {
     seen.add(gid)
     const g = vault.groups.find((x) => x.id === gid)
     if (!g) break
-    r.username ||= g.username
+    apply(g)
     r.port ||= g.port || 0
-    r.keyId ||= g.keyId
     r.jumpHostId ||= g.jumpHostId
-    if (!r.password && !host.keyId) r.password = g.password
     gid = g.parentId
   }
   r.port ||= 22
@@ -93,7 +119,7 @@ async function buildAuth(r: ResolvedHost, log: Log) {
       title: `Connect to ${r.host.label || r.address}`,
       instructions: 'No username configured for this host.',
       prompts: [{ prompt: 'Username', echo: true }],
-      offerSave: true
+      offerSave: !r.viaIdentity
     })
     username = 'values' in res && res.values ? res.values[0].trim() : ''
     if (!username) throw new Error('Cancelled')
@@ -128,7 +154,7 @@ async function buildAuth(r: ResolvedHost, log: Log) {
         title: `${username}@${r.address}`,
         instructions,
         prompts: prompts.map((p) => ({ prompt: p.prompt, echo: !!p.echo })),
-        offerSave: isPassword
+        offerSave: isPassword && !r.viaIdentity
       }).then((res) => {
         const values = 'values' in res && res.values ? res.values : []
         if (isPassword) toSave.password = 'save' in res && res.save ? values[0] : undefined
@@ -148,7 +174,7 @@ async function buildAuth(r: ResolvedHost, log: Log) {
       askSecretEx(
         `${username}@${r.address}`,
         passwordAttempts > 1 ? 'Authentication failed. Try again.' : 'Password',
-        true
+        !r.viaIdentity
       ).then(({ value, save }) => {
         toSave.password = save && value ? value : undefined
         cb(value ? { type: 'password', username, password: value } : false)

@@ -20,6 +20,7 @@ import {
 import type { Group, Host } from '@shared/types'
 import { errMsg, useStore } from '../store'
 import { confirmDialog, Field, GroupIcon, HostIcon, Panel, Select, Switch } from './ui'
+import Credentials from './Credentials'
 
 export function groupPath(groups: Group[], id?: string | null): string {
   const parts: string[] = []
@@ -58,7 +59,6 @@ export function groupOptions(groups: Group[], exclude?: string) {
 export function HostEditor({ initial }: { initial: Partial<Host> }) {
   const { vault, upsert, remove, setEditing, openTab, notify } = useStore()
   const [h, setH] = useState<Partial<Host>>(initial)
-  const [showPw, setShowPw] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [more, setMore] = useState(false)
   useEffect(() => setH(initial), [initial])
@@ -188,29 +188,7 @@ export function HostEditor({ initial }: { initial: Partial<Host> }) {
           <span>port</span>
         </div>
         <h4>Credentials</h4>
-        <Field icon={User} value={h.username} onChange={(v) => set({ username: v })} placeholder="Username" />
-        <label className="input">
-          <Lock size={15} />
-          <input
-            type={showPw ? 'text' : 'password'}
-            value={h.password ?? ''}
-            placeholder="Password"
-            onChange={(e) => set({ password: e.target.value })}
-          />
-          <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => setShowPw(!showPw)}>
-            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-        </label>
-        <Select
-          icon={KeyRound}
-          value={h.keyId}
-          onChange={(v) => set({ keyId: v })}
-          options={vault.keys.map((k) => ({ value: k.id, label: `${k.label} (${k.type})` }))}
-          placeholder="SSH key"
-        />
-        <button className="link" onClick={() => setEditing({ kind: 'key', item: {} })}>
-          <Plus size={12} /> New key
-        </button>
+        <Credentials value={h} onChange={set} />
         <button className="link" style={{ color: 'var(--text-2)' }} onClick={() => setMore(!more)}>
           Show {more ? 'less' : 'more'} {more ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
@@ -251,7 +229,6 @@ export function HostEditor({ initial }: { initial: Partial<Host> }) {
 export function GroupEditor({ initial }: { initial: Partial<Group> }) {
   const { vault, upsert, remove, setEditing, notify } = useStore()
   const [g, setG] = useState<Partial<Group>>(initial)
-  const [showPw, setShowPw] = useState(false)
   useEffect(() => setG(initial), [initial])
   if (!vault) return null
   const set = (patch: Partial<Group>) => setG((x) => ({ ...x, ...patch }))
@@ -312,7 +289,7 @@ export function GroupEditor({ initial }: { initial: Partial<Group> }) {
       </div>
       <div className="psection">
         <h4>Defaults for hosts in this group</h4>
-        <p className="hint">Hosts inherit these values when their own field is empty.</p>
+        <p className="hint">Hosts without their own credentials, port or jump host inherit these.</p>
         <div className="row">
           <span>SSH on</span>
           <label className="input small">
@@ -324,26 +301,7 @@ export function GroupEditor({ initial }: { initial: Partial<Group> }) {
           </label>
           <span>port</span>
         </div>
-        <Field icon={User} value={g.username} onChange={(v) => set({ username: v })} placeholder="Username" />
-        <label className="input">
-          <Lock size={15} />
-          <input
-            type={showPw ? 'text' : 'password'}
-            value={g.password ?? ''}
-            placeholder="Password"
-            onChange={(e) => set({ password: e.target.value })}
-          />
-          <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => setShowPw(!showPw)}>
-            {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-        </label>
-        <Select
-          icon={KeyRound}
-          value={g.keyId}
-          onChange={(v) => set({ keyId: v })}
-          options={vault.keys.map((k) => ({ value: k.id, label: `${k.label} (${k.type})` }))}
-          placeholder="SSH key"
-        />
+        <Credentials value={g} onChange={set} />
         <Select
           icon={Route}
           value={g.jumpHostId}

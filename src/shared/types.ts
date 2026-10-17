@@ -7,6 +7,7 @@ export interface Group {
   port?: number
   password?: string
   keyId?: string | null
+  identityId?: string | null
   jumpHostId?: string | null
   createdAt: number
 }
@@ -19,6 +20,8 @@ export interface Host {
   username?: string
   password?: string
   keyId?: string | null
+  // Reusable credentials from the keychain; takes over the inline username/password/key
+  identityId?: string | null
   groupId?: string | null
   jumpHostId?: string | null
   tags: string[]
@@ -41,6 +44,17 @@ export interface SshKey {
   publicKey: string
   passphrase?: string
   fingerprint: string
+  createdAt: number
+}
+
+// Reusable credential: a username plus either a password or an SSH key
+export interface Identity {
+  id: string
+  label: string
+  username: string
+  authType: 'password' | 'key'
+  password?: string
+  keyId?: string | null
   createdAt: number
 }
 
@@ -92,13 +106,14 @@ export interface Vault {
   groups: Group[]
   hosts: Host[]
   keys: SshKey[]
+  identities: Identity[]
   forwards: PortForward[]
   snippets: Snippet[]
   knownHosts: KnownHost[]
   settings: Settings
 }
 
-export type Collection = 'groups' | 'hosts' | 'keys' | 'forwards' | 'snippets' | 'knownHosts'
+export type Collection = 'groups' | 'hosts' | 'keys' | 'identities' | 'forwards' | 'snippets' | 'knownHosts'
 
 export const DEFAULT_SETTINGS: Settings = {
   appearance: 'system',

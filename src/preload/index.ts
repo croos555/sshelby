@@ -21,6 +21,7 @@ interface ImportPreview {
   groups: string[]
   hosts: string[]
   keys: number
+  identities: number
   snippets: number
   forwards: number
   knownHosts: number

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Copy, Download, Eye, EyeOff, FileUp, KeyRound, Lock, Plus, Send, Trash2, Upload } from 'lucide-react'
-import type { SshKey } from '@shared/types'
+import { Copy, Download, Eye, EyeOff, FileUp, IdCard, KeyRound, Lock, Plus, Send, Trash2, Upload, User } from 'lucide-react'
+import type { Identity, SshKey } from '@shared/types'
 import { errMsg, useStore } from '../store'
 import { confirmDialog, ContextMenu, Empty, Field, Panel, Segmented, Select, useMenu } from '../components/ui'
 
@@ -8,7 +8,9 @@ export default function KeychainView() {
   const { vault, editing, setEditing, remove } = useStore()
   const { menu, open, close } = useMenu()
   if (!vault) return null
-  const selectedId = editing?.kind === 'key' ? editing.item.id : undefined
+  const selectedId = editing?.kind === 'key' || editing?.kind === 'identity' ? editing.item.id : undefined
+  const usage = (id: string) =>
+    vault.hosts.filter((h) => h.identityId === id).length + vault.groups.filter((g) => g.identityId === id).length
 
   return (
     <div className="main">
@@ -17,15 +19,67 @@ export default function KeychainView() {
           <Plus size={15} /> New key
         </button>
         <button className="btn" onClick={() => setEditing({ kind: 'key', item: { label: '', privateKey: '' } })}>
-          <Upload size={15} /> Import
+          <Upload size={15} /> Import key
+        </button>
+        <button className="btn" onClick={() => setEditing({ kind: 'identity', item: { authType: 'password' } })}>
+          <IdCard size={15} /> New identity
         </button>
       </div>
       <div className="content" onClick={() => setEditing(null)}>
-        {vault.keys.length === 0 ? (
+        {vault.identities.length > 0 && (
+          <>
+            <div className="section-title">Identities</div>
+            <div className="grid">
+              {vault.identities.map((i) => (
+                <div
+                  key={i.id}
+                  className={`card ${selectedId === i.id ? 'selected' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditing({ kind: 'identity', item: i })
+                  }}
+                  onContextMenu={(e) =>
+                    open(e, [
+                      {
+                        label: 'Delete',
+                        icon: Trash2,
+                        danger: true,
+                        onClick: async () => {
+                          const n = usage(i.id)
+                          if (
+                            await confirmDialog({
+                              title: 'Delete identity',
+                              message: `Delete "${i.label}"?${n ? ` ${n} host(s)/group(s) use it and will lose these credentials.` : ''}`,
+                              danger: true,
+                              confirm: 'Delete'
+                            })
+                          )
+                            remove('identities', i.id)
+                        }
+                      }
+                    ])
+                  }
+                >
+                  <div className="icon-tile" style={{ background: '#2f6f8f' }}>
+                    <IdCard size={18} />
+                  </div>
+                  <div className="meta">
+                    <div className="name">{i.label}</div>
+                    <div className="sub">
+                      {i.username} · {i.authType === 'key' ? 'SSH key' : 'password'}
+                      {usage(i.id) ? ` · used by ${usage(i.id)}` : ''}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        {vault.keys.length === 0 && vault.identities.length === 0 ? (
           <Empty
             icon={KeyRound}
             title="Add credentials"
-            text="Generate or import SSH keys to quickly and securely access your servers."
+            text="Create identities (username + password or key) to reuse across hosts, and generate or import SSH keys."
             action={
               <button
                 className="btn primary"
@@ -38,7 +92,7 @@ export default function KeychainView() {
               </button>
             }
           />
-        ) : (
+        ) : vault.keys.length === 0 ? null : (
           <>
             <div className="section-title">Keys</div>
             <div className="grid">
@@ -329,6 +383,124 @@ export function KeyEditor({ initial }: { initial: Partial<SshKey> }) {
         )}
         {passField}
       </div>
+    </Panel>
+  )
+}
+
+export function IdentityEditor({ initial }: { initial: Partial<Identity> }) {
+  const { vault, upsert, remove, setEditing, notify } = useStore()
+  const [i, setI] = useState<Partial<Identity>>(initial)
+  const [showPw, setShowPw] = useState(false)
+  useEffect(() => setI(initial), [initial])
+  if (!vault) return null
+  const set = (patch: Partial<Identity>) => setI((x) => ({ ...x, ...patch }))
+  const close = () => setEditing(null)
+  const authType = i.authType || 'password'
+  const users = vault.hosts.filter((h) => h.identityId === i.id)
+  const groupUsers = vault.groups.filter((g) => g.identityId === i.id)
+
+  const save = async () => {
+    if (!i.username?.trim()) return notify('Username is required', true)
+    if (authType === 'key' && !i.keyId) return notify('Choose an SSH key', true)
+    const saved = await upsert('identities', {
+      ...i,
+      authType,
+      label: i.label?.trim() || i.username.trim(),
+      username: i.username.trim(),
+      // Keep only the secret matching the auth type
+      password: authType === 'password' ? i.password : undefined,
+      keyId: authType === 'key' ? i.keyId : null
+    })
+    setI(saved)
+    notify('Identity saved')
+  }
+  const del = async () => {
+    if (!i.id) return
+    const n = users.length + groupUsers.length
+    if (
+      await confirmDialog({
+        title: 'Delete identity',
+        message: `Delete "${i.label}"?${n ? ` ${n} host(s)/group(s) use it and will lose these credentials.` : ''}`,
+        danger: true,
+        confirm: 'Delete'
+      })
+    ) {
+      await remove('identities', i.id)
+      close()
+    }
+  }
+
+  return (
+    <Panel
+      title={i.id ? 'Identity' : 'New Identity'}
+      onClose={close}
+      actions={
+        i.id && (
+          <button className="icon-btn" title="Delete" onClick={del}>
+            <Trash2 size={15} />
+          </button>
+        )
+      }
+      footer={
+        <button className="btn primary block" onClick={save}>
+          Save
+        </button>
+      }
+    >
+      <div className="psection">
+        <h4>General</h4>
+        <Field value={i.label} onChange={(v) => set({ label: v })} placeholder="Label (e.g. Prod admin)" autoFocus={!i.id} />
+        <Field icon={User} value={i.username} onChange={(v) => set({ username: v })} placeholder="Username" />
+      </div>
+      <div className="psection">
+        <h4>Authentication</h4>
+        <Segmented
+          value={authType}
+          onChange={(v) => set({ authType: v })}
+          options={[
+            { value: 'password', label: 'Password' },
+            { value: 'key', label: 'SSH key' }
+          ]}
+        />
+        {authType === 'password' ? (
+          <>
+            <label className="input">
+              <Lock size={15} />
+              <input
+                type={showPw ? 'text' : 'password'}
+                value={i.password ?? ''}
+                placeholder="Password"
+                onChange={(e) => set({ password: e.target.value })}
+              />
+              <button className="icon-btn" style={{ width: 22, height: 22 }} onClick={() => setShowPw(!showPw)}>
+                {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </label>
+            <p className="hint">Leave empty to be asked for the password on each connection.</p>
+          </>
+        ) : (
+          <>
+            <Select
+              icon={KeyRound}
+              value={i.keyId}
+              onChange={(v) => set({ keyId: v })}
+              options={vault.keys.map((k) => ({ value: k.id, label: `${k.label} (${k.type})` }))}
+              placeholder="Choose SSH key"
+            />
+            {vault.keys.length === 0 && <p className="hint">No keys yet: generate or import one in the Keychain first.</p>}
+          </>
+        )}
+      </div>
+      {i.id && (
+        <div className="psection">
+          <h4>Used by</h4>
+          {users.length + groupUsers.length === 0 ? (
+            <p className="hint">Not assigned yet. Pick it in a host’s or group’s Credentials.</p>
+          ) : (
+            <p className="hint">{[...groupUsers.map((g) => `${g.name} (group)`), ...users.map((h) => h.label || h.address)].join(', ')}</p>
+          )}
+        </div>
+      )}
     </Panel>
   )
 }

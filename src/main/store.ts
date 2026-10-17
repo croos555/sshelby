@@ -8,7 +8,8 @@ import { Collection, DEFAULT_SETTINGS, Settings, Vault } from '@shared/types'
 const SECRET_FIELDS: Partial<Record<Collection, string[]>> = {
   hosts: ['password'],
   groups: ['password'],
-  keys: ['privateKey', 'passphrase']
+  keys: ['privateKey', 'passphrase'],
+  identities: ['password']
 }
 
 const ENC_PREFIX = 'enc:v1:'
@@ -33,6 +34,7 @@ function emptyVault(): Vault {
     groups: [],
     hosts: [],
     keys: [],
+    identities: [],
     forwards: [],
     snippets: [],
     knownHosts: [],
@@ -116,6 +118,11 @@ class Store {
     if (col === 'keys') {
       for (const h of this.vault.hosts) if (h.keyId === id) h.keyId = null
       for (const g of this.vault.groups) if (g.keyId === id) g.keyId = null
+      for (const i of this.vault.identities) if (i.keyId === id) i.keyId = null
+    }
+    if (col === 'identities') {
+      for (const h of this.vault.hosts) if (h.identityId === id) h.identityId = null
+      for (const g of this.vault.groups) if (g.identityId === id) g.identityId = null
     }
     if (col === 'hosts') {
       this.vault.forwards = this.vault.forwards.filter((f) => f.hostId !== id)

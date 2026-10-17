@@ -1260,3 +1260,17 @@ textarea.input {
   font-size: 11px;
   color: var(--text-3);
 }
+
+.identity-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--input);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.identity-summary .grow {
+  flex: 1;
+  min-width: 0;
+}

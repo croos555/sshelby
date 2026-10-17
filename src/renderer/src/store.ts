@@ -4,6 +4,7 @@ import type {
   ForwardStatus,
   Group,
   Host,
+  Identity,
   PortForward,
   Settings,
   SshKey,
@@ -28,6 +29,7 @@ export type Editing =
   | { kind: 'host'; item: Partial<Host> }
   | { kind: 'group'; item: Partial<Group> }
   | { kind: 'key'; item: Partial<SshKey> }
+  | { kind: 'identity'; item: Partial<Identity> }
   | { kind: 'forward'; item: Partial<PortForward> }
   | { kind: 'snippet'; item: Partial<Snippet> }
   | null

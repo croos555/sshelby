@@ -330,7 +330,11 @@ export default function HostsView() {
                       <div className="meta">
                         <div className="name">{h.label || h.address}</div>
                         <div className="sub">
-                          ssh{h.username ? `, ${h.username}` : ''}
+                          ssh
+                          {(() => {
+                            const idn = h.identityId && vault.identities.find((i) => i.id === h.identityId)
+                            return idn ? `, ${idn.username} (${idn.label})` : h.username ? `, ${h.username}` : ''
+                          })()}
                           {query && h.groupId ? ` · ${groupPath(vault.groups, h.groupId)}` : ''}
                           {h.tags?.length ? ` · ${h.tags.join(', ')}` : ''}
                         </div>

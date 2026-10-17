@@ -40,6 +40,7 @@ const LABELS: Record<string, string> = {
   groups: 'groups',
   hosts: 'hosts',
   keys: 'SSH keys',
+  identities: 'identities',
   snippets: 'snippets',
   forwards: 'forwarding rules',
   knownHosts: 'known hosts'
@@ -196,8 +197,8 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
           <span>Include port forwarding rules of these hosts</span>
         </label>
         <div className="hint">
-          {nothing ? 'Nothing selected.' : `Will export: ${summarize(preview)}.`} Parent groups, SSH keys, jump hosts and
-          startup snippets used by the selection are added automatically, including passwords and private keys.
+          {nothing ? 'Nothing selected.' : `Will export: ${summarize(preview)}.`} Parent groups, identities, SSH keys, jump hosts
+          and startup snippets used by the selection are added automatically, including passwords and private keys.
         </div>
         <KeyField value={key} onChange={setKey} placeholder="Encryption key (min. 8 characters)" />
         <KeyField value={confirm} onChange={setConfirm} placeholder="Confirm key" onEnter={doExport} />
@@ -304,6 +305,7 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
                 </>
               ) : null}
               {preview.keys ? `, ${preview.keys} SSH keys` : ''}
+              {preview.identities ? `, ${preview.identities} identities` : ''}
               {preview.forwards ? `, ${preview.forwards} forwarding rules` : ''}
               {preview.snippets ? `, ${preview.snippets} snippets` : ''}
               {preview.knownHosts ? `, ${preview.knownHosts} known hosts` : ''}

@@ -63,7 +63,9 @@ function collect(sel: ExportSelection): Payload {
 
   const hosts = v.hosts.filter((h) => hostIds.has(h.id))
   const groups = v.groups.filter((g) => groupIds.has(g.id))
-  const keyIds = new Set([...hosts, ...groups].map((x) => x.keyId).filter(Boolean) as string[])
+  const identityIds = new Set([...hosts, ...groups].map((x) => x.identityId).filter(Boolean) as string[])
+  const identities = v.identities.filter((i) => identityIds.has(i.id))
+  const keyIds = new Set([...hosts, ...groups, ...identities].map((x) => x.keyId).filter(Boolean) as string[])
   const snippetIds = new Set(hosts.map((h) => h.startupSnippetId).filter(Boolean) as string[])
   const addrs = new Set(hosts.map((h) => h.address))
   return {
@@ -71,6 +73,7 @@ function collect(sel: ExportSelection): Payload {
     groups,
     hosts,
     keys: v.keys.filter((k) => keyIds.has(k.id)),
+    identities,
     snippets: v.snippets.filter((s) => snippetIds.has(s.id)),
     forwards: sel.includeForwards ? v.forwards.filter((f) => hostIds.has(f.hostId)) : [],
     knownHosts: v.knownHosts.filter((k) => addrs.has(k.host))
@@ -95,6 +98,18 @@ function merge(p: Payload): ImportSummary {
     const saved = store.upsert('keys', { ...k, id: existing?.id || randomUUID() })
     keyMap.set(k.id, saved.id)
     count('keys', !existing)
+  }
+
+  const identityMap = new Map<string, string>()
+  for (const i of p.identities || []) {
+    const existing = v.identities.find((x) => x.label === i.label && x.username === i.username)
+    const saved = store.upsert('identities', {
+      ...i,
+      id: existing?.id || randomUUID(),
+      keyId: i.keyId ? keyMap.get(i.keyId) || null : null
+    })
+    identityMap.set(i.id, saved.id)
+    count('identities', !existing)
   }
 
   for (const s of p.snippets || []) {
@@ -132,6 +147,7 @@ function merge(p: Payload): ImportSummary {
       id,
       parentId: g.parentId ? groupMap.get(g.parentId) || null : null,
       keyId: g.keyId ? keyMap.get(g.keyId) || null : null,
+      identityId: g.identityId ? identityMap.get(g.identityId) || null : null,
       jumpHostId: g.jumpHostId ? hostMap.get(g.jumpHostId) || null : null
     })
     count('groups', !existed)
@@ -145,6 +161,7 @@ function merge(p: Payload): ImportSummary {
       id,
       groupId: h.groupId ? groupMap.get(h.groupId) || null : null,
       keyId: h.keyId ? keyMap.get(h.keyId) || null : null,
+      identityId: h.identityId ? identityMap.get(h.identityId) || null : null,
       jumpHostId: h.jumpHostId ? hostMap.get(h.jumpHostId) || null : null,
       startupSnippetId: h.startupSnippetId ? snippetMap.get(h.startupSnippetId) || null : null,
       lastConnectedAt: undefined
@@ -184,6 +201,7 @@ ipcMain.handle('transfer:preview', (_e, sel: ExportSelection) => {
     groups: p.groups.length,
     hosts: p.hosts.length,
     keys: p.keys.length,
+    identities: p.identities?.length || 0,
     snippets: p.snippets.length,
     forwards: p.forwards.length,
     knownHosts: p.knownHosts.length
@@ -224,6 +242,7 @@ ipcMain.handle('transfer:inspect', async (_e, path: string, passphrase: string) 
     groups: (p.groups || []).map((g) => g.name),
     hosts: (p.hosts || []).map((h) => h.label || h.address),
     keys: (p.keys || []).length,
+    identities: (p.identities || []).length,
     snippets: (p.snippets || []).length,
     forwards: (p.forwards || []).length,
     knownHosts: (p.knownHosts || []).length
