@@ -17,13 +17,26 @@ import {
   ArrowDownAZ,
   Clock,
   Upload,
-  Download
+  Download,
+  ListTree
 } from 'lucide-react'
 import type { Group, Host } from '@shared/types'
 import { errMsg, useStore } from '../store'
 import { confirmDialog, ContextMenu, Empty, GroupIcon, HostIcon, useMenu } from '../components/ui'
 import { groupPath } from '../components/HostEditor'
+import HostTree from '../components/HostTree'
 import { credentialSource, usesParentCredentials } from '@shared/creds'
+
+type Layout = 'grid' | 'list' | 'tree'
+
+function loadLayout(): Layout {
+  try {
+    const v = localStorage.getItem('sshelby.hosts.layout')
+    return v === 'list' || v === 'tree' ? v : 'grid'
+  } catch {
+    return 'grid'
+  }
+}
 
 function parseQuick(q: string): Partial<Host> | null {
   // ssh user@host -p 2222 | user@host:2222 | host
@@ -39,18 +52,28 @@ export default function HostsView() {
   const { vault, editing, setEditing, openTab, upsert, remove, currentGroup, setCurrentGroup, notify, load, setModal } =
     useStore()
   const [query, setQuery] = useState('')
-  const [layout, setLayout] = useState<'grid' | 'list'>('grid')
+  const [layout, setLayoutState] = useState<Layout>(loadLayout)
+  const setLayout = (l: Layout) => {
+    setLayoutState(l)
+    try {
+      localStorage.setItem('sshelby.hosts.layout', l)
+    } catch {
+      // not persisted, fine
+    }
+  }
   const [sort, setSort] = useState<'name' | 'recent'>('name')
   const [newMenu, setNewMenu] = useState(false)
   const { menu, open, close } = useMenu()
 
+  const sortHosts = (a: Host, b: Host) =>
+    sort === 'recent'
+      ? (b.lastConnectedAt || 0) - (a.lastConnectedAt || 0)
+      : (a.label || a.address).localeCompare(b.label || b.address)
+
   const { groups, hosts } = useMemo(() => {
     if (!vault) return { groups: [] as Group[], hosts: [] as Host[] }
     const q = query.trim().toLowerCase()
-    const sorter = (a: Host, b: Host) =>
-      sort === 'recent'
-        ? (b.lastConnectedAt || 0) - (a.lastConnectedAt || 0)
-        : (a.label || a.address).localeCompare(b.label || b.address)
+    const sorter = sortHosts
     if (q) {
       // Search spans every group
       const hosts = vault.hosts.filter((h) =>
@@ -234,12 +257,45 @@ export default function HostsView() {
         >
           {sort === 'name' ? <ArrowDownAZ size={16} /> : <Clock size={16} />}
         </button>
-        <button className="icon-btn" title="Change layout" onClick={() => setLayout(layout === 'grid' ? 'list' : 'grid')}>
-          {layout === 'grid' ? <List size={16} /> : <LayoutGrid size={16} />}
-        </button>
+        <div className="view-switch">
+          <button className={`icon-btn ${layout === 'grid' ? 'active' : ''}`} title="Grid" onClick={() => setLayout('grid')}>
+            <LayoutGrid size={15} />
+          </button>
+          <button className={`icon-btn ${layout === 'list' ? 'active' : ''}`} title="List" onClick={() => setLayout('list')}>
+            <List size={16} />
+          </button>
+          <button className={`icon-btn ${layout === 'tree' ? 'active' : ''}`} title="Tree" onClick={() => setLayout('tree')}>
+            <ListTree size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="content" onClick={() => setEditing(null)}>
+        {layout === 'tree' ? (
+          <HostTree
+            vault={vault}
+            query={query}
+            sortHosts={sortHosts}
+            selectedId={selectedId}
+            credLabel={credLabel}
+            onSelect={(x) => setEditing(x)}
+            onOpenHost={(h) => openTab('ssh', h.id)}
+            onSftp={(h) => openTab('sftp', h.id)}
+            onNewHost={(groupId) => setEditing({ kind: 'host', item: { groupId, tags: [] } })}
+            onHostMenu={hostMenu}
+            onGroupMenu={groupMenu}
+            onMove={async (d, groupId) => {
+              if (d.kind === 'host') {
+                const h = vault.hosts.find((x) => x.id === d.id)
+                if (h && (h.groupId || null) !== groupId) await upsert('hosts', { ...h, groupId })
+              } else {
+                const g = vault.groups.find((x) => x.id === d.id)
+                if (g && (g.parentId || null) !== groupId) await upsert('groups', { ...g, parentId: groupId })
+              }
+            }}
+          />
+        ) : (
+        <>
         {crumbs.length > 0 && !query && (
           <div className="crumbs">
             <button onClick={() => setCurrentGroup(null)}>All hosts</button>
@@ -373,6 +429,8 @@ export default function HostsView() {
               </>
             )}
           </>
+        )}
+        </>
         )}
       </div>
       <ContextMenu menu={menu} onClose={close} />

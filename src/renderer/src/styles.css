@@ -1371,3 +1371,134 @@ textarea.input {
   flex: 1;
   min-width: 0;
 }
+
+/* ---------- hosts tree view ---------- */
+
+.view-switch {
+  display: flex;
+  gap: 2px;
+  background: var(--input);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  padding: 2px;
+}
+.view-switch .icon-btn {
+  width: 26px;
+  height: 24px;
+}
+.view-switch .icon-btn.active {
+  background: var(--card);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+}
+.tree-view {
+  max-width: 980px;
+}
+.tv-tools {
+  display: flex;
+  gap: 14px;
+  margin: 0 0 8px 4px;
+}
+.tv-root {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 4px 0;
+  border: 2px solid transparent;
+}
+.tv-root.drop {
+  border-color: var(--accent);
+}
+.tv-root-hint {
+  font-size: 11px;
+  color: var(--text-3);
+  padding: 6px 12px 4px;
+}
+.tv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding-right: 8px;
+  cursor: default;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  margin: 0 4px;
+}
+.tv-row:hover {
+  background: var(--card-hover);
+  filter: brightness(0.98);
+}
+.tv-row.selected {
+  background: var(--accent-soft);
+}
+.tv-row.drop {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.tv-chevron {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  background: transparent;
+  color: var(--text-3);
+  padding: 0;
+  border-radius: 4px;
+}
+.tv-chevron:hover {
+  color: var(--text);
+}
+.tv-folder {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--group-icon);
+  color: white;
+  flex-shrink: 0;
+}
+.tv-row .icon-tile.sm {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.tv-name {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tv-row.group .tv-name {
+  font-weight: 600;
+}
+.tv-count {
+  font-size: 11px;
+  color: var(--text-3);
+  background: var(--input);
+  border-radius: 9px;
+  padding: 1px 7px;
+}
+.tv-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.tv-row.group .tv-count {
+  margin-right: auto;
+}
+.tv-actions {
+  display: none;
+  gap: 2px;
+  margin-left: auto;
+}
+.tv-row:hover .tv-actions {
+  display: flex;
+}
