@@ -7,6 +7,8 @@ import { notifyVaultChanged, store } from './store'
 import { CpuSample, parseStats, STATS_COMMAND } from './stats-core'
 
 interface Session {
+  // Latest terminal size from the UI; resizes arriving while connecting must not be lost
+  size: { cols: number; rows: number }
   statsTimer?: ReturnType<typeof setInterval>
   cpuSample?: CpuSample
   statsBusy?: boolean
@@ -27,7 +29,7 @@ function status(wc: WebContents, sessionId: string, s: SessionStatus, message?: 
 
 ipcMain.handle('ssh:open', async (e, sessionId: string, hostId: string, cols: number, rows: number) => {
   const wc = e.sender
-  const session: Session = { closed: false }
+  const session: Session = { closed: false, size: { cols, rows } }
   sessions.set(sessionId, session)
   const log = (msg: string) => send(wc, 'ssh:data', { sessionId, data: `\x1b[90m${msg}\x1b[0m\r\n` })
   status(wc, sessionId, 'connecting')
@@ -36,9 +38,12 @@ ipcMain.handle('ssh:open', async (e, sessionId: string, hostId: string, cols: nu
     if (session.closed) return conn.close()
     session.conn = conn
     const stream = await new Promise<ClientChannel>((resolve, reject) =>
-      conn.client.shell({ term: 'xterm-256color', cols, rows }, (err, s) => (err ? reject(err) : resolve(s)))
+      // Use the latest size: the terminal is often refitted (font loaded, panels) during the connection
+      conn.client.shell({ term: 'xterm-256color', ...session.size }, (err, s) => (err ? reject(err) : resolve(s)))
     )
     session.stream = stream
+    // A resize may have landed between the shell request and now
+    stream.setWindow(session.size.rows, session.size.cols, 0, 0)
     status(wc, sessionId, 'connected')
 
     const decoder = new StringDecoder('utf8')
@@ -86,7 +91,10 @@ ipcMain.on('ssh:write', (_e, sessionId: string, data: string) => {
 })
 
 ipcMain.on('ssh:resize', (_e, sessionId: string, cols: number, rows: number) => {
-  sessions.get(sessionId)?.stream?.setWindow(rows, cols, 0, 0)
+  const s = sessions.get(sessionId)
+  if (!s || !cols || !rows) return
+  s.size = { cols, rows }
+  s.stream?.setWindow(rows, cols, 0, 0)
 })
 
 // Status bar sampling: only while the tab is visible, one exec at a time on the session's connection

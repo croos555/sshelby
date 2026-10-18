@@ -115,6 +115,11 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
       if (id !== sessionId.current) return
       setStatus({ s: status, msg: message })
       updateTab(tab.id, { status })
+      // Re-send the size once the shell exists, in case a refit happened while connecting
+      if (status === 'connected') {
+        fit.current?.fit()
+        window.api.ssh.resize(id, t.cols, t.rows)
+      }
       if (status === 'error' && message) t.write(`\r\n\x1b[31m${message}\x1b[0m\r\n`)
     })
     const inData = t.onData((d) => window.api.ssh.write(sessionId.current, d))
