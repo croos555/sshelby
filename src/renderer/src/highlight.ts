@@ -25,7 +25,8 @@ export const DEFAULT_RULES: HighlightRule[] = [
   { id: 'warn', label: 'Warnings', pattern: '\\b(warn|warning|warnings|deprecated|timeout|timed out)\\b', color: 'bright-yellow', enabled: true },
   { id: 'ok', label: 'Success', pattern: '\\b(ok|success|successful|succeeded|passed|done|active \\(running\\)|enabled)\\b', color: 'bright-green', enabled: true },
   { id: 'info', label: 'Info / debug', pattern: '\\b(info|notice|debug|trace)\\b', color: 'cyan', enabled: true },
-  { id: 'ip', label: 'IP addresses', pattern: '\\b(?:\\d{1,3}\\.){3}\\d{1,3}(?:/\\d{1,2})?(?::\\d+)?\\b', color: 'bright-magenta', caseSensitive: true, enabled: true },
+  { id: 'ip', label: 'IPv4 addresses', pattern: '\\b(?:\\d{1,3}\\.){3}\\d{1,3}(?:/\\d{1,2})?(?::\\d+)?\\b', color: 'bright-magenta', caseSensitive: true, enabled: true },
+  { id: 'ip6', label: 'IPv6 addresses', pattern: '(?<![\\w:.])(?:(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}:){1,7}:|(?:[0-9a-f]{1,4}:){1,6}:[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}:){1,5}(?::[0-9a-f]{1,4}){1,2}|(?:[0-9a-f]{1,4}:){1,4}(?::[0-9a-f]{1,4}){1,3}|(?:[0-9a-f]{1,4}:){1,3}(?::[0-9a-f]{1,4}){1,4}|(?:[0-9a-f]{1,4}:){1,2}(?::[0-9a-f]{1,4}){1,5}|[0-9a-f]{1,4}:(?::[0-9a-f]{1,4}){1,6}|:(?::[0-9a-f]{1,4}){1,7}|::(?:ffff(?::0{1,4})?:)?(?:\\d{1,3}\\.){3}\\d{1,3})(?:%[\\w.]+)?(?:/\\d{1,3})?(?![\\w:])', color: 'bright-magenta', enabled: true },
   { id: 'date', label: 'Dates & times', pattern: '\\b\\d{4}-\\d{2}-\\d{2}(?:[T ]\\d{2}:\\d{2}:\\d{2}(?:[.,]\\d+)?(?:Z|[+-]\\d{2}:?\\d{2})?)?\\b|\\b\\d{2}:\\d{2}:\\d{2}\\b', color: 'blue', caseSensitive: true, enabled: true },
   { id: 'url', label: 'URLs', pattern: 'https?://[^\\s"\'<>]+', color: 'bright-blue', caseSensitive: true, enabled: false }
 ]
@@ -67,7 +68,18 @@ export class Highlighter {
     this.rules = compileRules(rules)
   }
 
-  process(chunk: string): string {
+  // Start of an escape sequence cut off at the end of the previous chunk
+  private pending = ''
+
+  process(input: string): string {
+    let chunk = this.pending + input
+    this.pending = ''
+    // Hold back an unfinished trailing sequence so it is never mistaken for text
+    const tail = chunk.match(/\x1b(?:\[[0-?]*[ -/]*|\][^\x07\x1b]*(?:\x1b)?)?$/)
+    if (tail && tail[0].length <= 256) {
+      this.pending = tail[0]
+      chunk = chunk.slice(0, -tail[0].length)
+    }
     if (!this.rules.length) {
       this.track(chunk)
       return chunk
