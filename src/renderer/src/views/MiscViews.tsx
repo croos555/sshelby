@@ -298,6 +298,17 @@ export function SettingsView() {
               <span>Blinking cursor</span>
               <Switch on={s.cursorBlink} onChange={(v) => saveSettings({ cursorBlink: v })} />
             </label>
+            {window.api.platform === 'darwin' && (
+              <label className="row">
+                <span>
+                  Use Option as Meta key
+                  <span className="hint" style={{ display: 'block' }}>
+                    For Alt shortcuts in Emacs or the shell. Off: Option types {'{ } [ ] | ~'} etc.
+                  </span>
+                </span>
+                <Switch on={s.optionAsMeta} onChange={(v) => saveSettings({ optionAsMeta: v })} />
+              </label>
+            )}
             <label className="row">
               <span>Status bar (remote CPU, RAM, disks)</span>
               <Switch on={s.statusBar} onChange={(v) => saveSettings({ statusBar: v })} />

@@ -66,7 +66,8 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
       scrollback: settings.scrollback,
       theme: getTheme(hostTheme || settings.theme).theme,
       allowProposedApi: true,
-      macOptionIsMeta: true
+      // Off by default: Option must type { } [ ] | ~ on AZERTY / international Mac layouts
+      macOptionIsMeta: settings.optionAsMeta
     })
     const f = new FitAddon()
     const s = new SearchAddon()
@@ -150,8 +151,9 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
     t.options.fontSize = settings.fontSize
     t.options.cursorBlink = settings.cursorBlink
     t.options.scrollback = settings.scrollback
+    t.options.macOptionIsMeta = settings.optionAsMeta
     fit.current?.fit()
-  }, [hostTheme, settings.theme, settings.fontFamily, settings.fontSize, settings.cursorBlink, settings.scrollback])
+  }, [hostTheme, settings.theme, settings.fontFamily, settings.fontSize, settings.cursorBlink, settings.scrollback, settings.optionAsMeta])
 
   useEffect(() => {
     if (active) {

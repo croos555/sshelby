@@ -126,6 +126,8 @@ export interface Settings {
   highlightRules?: HighlightRule[]
   // Keep the app (and its port forwards) alive when the last window is closed
   keepRunningInBackground: boolean
+  // macOS: Option key sends Meta (Esc prefix) instead of typing composed characters
+  optionAsMeta: boolean
 }
 
 export interface HighlightRule {
@@ -172,7 +174,8 @@ export const DEFAULT_SETTINGS: Settings = {
   agentPath: '',
   statusBar: true,
   highlight: false,
-  keepRunningInBackground: false
+  keepRunningInBackground: false,
+  optionAsMeta: false
 }
 
 // ---- Interactive prompts raised by the main process during connection ----
