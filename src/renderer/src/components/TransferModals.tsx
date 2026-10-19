@@ -61,14 +61,16 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
   const [hosts, setHosts] = useState<Set<string>>(new Set())
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [includeForwards, setIncludeForwards] = useState(true)
+  // Private keys and identities stay on this machine unless explicitly included
+  const [includeCredentials, setIncludeCredentials] = useState(false)
   const [key, setKey] = useState('')
   const [confirm, setConfirm] = useState('')
   const [preview, setPreview] = useState<Record<string, number>>({})
   const [busy, setBusy] = useState(false)
 
   const selection = useMemo(
-    () => ({ groupIds: [...groups], hostIds: [...hosts], includeForwards }),
-    [groups, hosts, includeForwards]
+    () => ({ groupIds: [...groups], hostIds: [...hosts], includeForwards, includeCredentials }),
+    [groups, hosts, includeForwards, includeCredentials]
   )
 
   useEffect(() => {
@@ -196,9 +198,16 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
           <input type="checkbox" checked={includeForwards} onChange={(e) => setIncludeForwards(e.target.checked)} />
           <span>Include port forwarding rules of these hosts</span>
         </label>
+        <label className="row" style={{ gap: 8 }}>
+          <input type="checkbox" checked={includeCredentials} onChange={(e) => setIncludeCredentials(e.target.checked)} />
+          <span>Include SSH keys and identities used by these hosts (private keys!)</span>
+        </label>
         <div className="hint">
-          {nothing ? 'Nothing selected.' : `Will export: ${summarize(preview)}.`} Parent groups, identities, SSH keys, jump hosts
-          and startup snippets used by the selection are added automatically, including passwords and private keys.
+          {nothing ? 'Nothing selected.' : `Will export: ${summarize(preview)}.`} Parent groups, jump hosts and startup snippets used
+          by the selection are added automatically, with host passwords.{' '}
+          {includeCredentials
+            ? 'SSH keys and identities are included too.'
+            : 'SSH keys and identities are not exported: hosts that use them will need them again on the other machine.'}
         </div>
         <KeyField value={key} onChange={setKey} placeholder="Encryption key (min. 8 characters)" />
         <KeyField value={confirm} onChange={setConfirm} placeholder="Confirm key" onEnter={doExport} />

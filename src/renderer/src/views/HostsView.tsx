@@ -21,7 +21,7 @@ import {
   ListTree
 } from 'lucide-react'
 import type { Group, Host } from '@shared/types'
-import { errMsg, useStore } from '../store'
+import { errMsg, importMobaXterm, useStore } from '../store'
 import { confirmDialog, ContextMenu, Empty, GroupIcon, HostIcon, useMenu } from '../components/ui'
 import { groupPath } from '../components/HostEditor'
 import HostTree from '../components/HostTree'
@@ -235,6 +235,9 @@ export default function HostsView() {
               </button>
               <button onClick={importSshConfig}>
                 <FileInput size={14} /> Import ~/.ssh/config
+              </button>
+              <button onClick={importMobaXterm}>
+                <FileInput size={14} /> Import from MobaXterm…
               </button>
               <hr />
               <button onClick={() => setModal('export')}>

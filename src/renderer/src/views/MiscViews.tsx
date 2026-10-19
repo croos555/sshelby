@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Braces, Copy, Download, Fingerprint, Pencil, Plus, Trash2, Upload, FileInput } from 'lucide-react'
 import type { Snippet } from '@shared/types'
-import { errMsg, useStore } from '../store'
+import { errMsg, importMobaXterm, useStore } from '../store'
 import { confirmDialog, ContextMenu, Empty, Field, Panel, Segmented, Select, Switch, useMenu } from '../components/ui'
 import { THEMES } from '../themes'
 import { compileRules, DEFAULT_RULES } from '../highlight'
@@ -394,6 +394,9 @@ export function SettingsView() {
               </button>
               <button className="btn soft" onClick={() => run(() => window.api.vault.importSshConfig(), 'Imported ~/.ssh/config')}>
                 <FileInput size={14} /> Import ~/.ssh/config
+              </button>
+              <button className="btn soft" onClick={importMobaXterm}>
+                <FileInput size={14} /> Import from MobaXterm…
               </button>
             </div>
             <p className="hint">Exports are encrypted with a key you choose (AES-256-GCM, scrypt key derivation).</p>

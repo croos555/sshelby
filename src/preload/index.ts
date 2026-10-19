@@ -16,6 +16,7 @@ interface ExportSelection {
   groupIds: string[]
   hostIds: string[]
   includeForwards: boolean
+  includeCredentials?: boolean
 }
 interface ImportPreview {
   exportedAt: number
@@ -49,6 +50,15 @@ const api = {
     settings: (patch: Partial<Settings>): Promise<Settings> => ipcRenderer.invoke('vault:settings', patch),
     storageInfo: (): Promise<{ encrypted: boolean; backend: string }> => ipcRenderer.invoke('vault:storageInfo'),
     importSshConfig: (): Promise<number> => ipcRenderer.invoke('vault:importSshConfig'),
+    importMobaXterm: (): Promise<{
+      hosts: number
+      updated: number
+      groups: number
+      jumpHosts: number
+      keys: number
+      keysMissing: number
+      skipped: { name: string; kind: string }[]
+    } | null> => ipcRenderer.invoke('vault:importMobaXterm'),
     onChanged: (cb: () => void) => on('vault:changed', cb)
   },
 

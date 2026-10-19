@@ -14,6 +14,7 @@ import './prompts'
 import { handOff, showSplash } from './splash'
 import './transfer'
 import './agent'
+import './mobaxterm'
 
 function createWindow(splash?: BrowserWindow) {
   const win = new BrowserWindow({

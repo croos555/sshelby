@@ -11,6 +11,8 @@ export interface ExportSelection {
   groupIds: string[]
   hostIds: string[]
   includeForwards: boolean
+  // SSH keys and identities are left out unless explicitly requested
+  includeCredentials?: boolean
 }
 
 export interface ImportSummary {
@@ -72,8 +74,8 @@ function collect(sel: ExportSelection): Payload {
     exportedAt: Date.now(),
     groups,
     hosts,
-    keys: v.keys.filter((k) => keyIds.has(k.id)),
-    identities,
+    keys: sel.includeCredentials ? v.keys.filter((k) => keyIds.has(k.id)) : [],
+    identities: sel.includeCredentials ? identities : [],
     snippets: v.snippets.filter((s) => snippetIds.has(s.id)),
     forwards: sel.includeForwards ? v.forwards.filter((f) => hostIds.has(f.hostId)) : [],
     knownHosts: v.knownHosts.filter((k) => addrs.has(k.host))

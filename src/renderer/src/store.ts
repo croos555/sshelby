@@ -157,6 +157,29 @@ window.api.sftp.onExternalSaved((p) =>
 )
 window.api.sftp.onTransfer((t) => useStore.setState((s) => ({ transfers: { ...s.transfers, [t.transferId]: t } })))
 
+// Shared by the Hosts menu and Settings
+export async function importMobaXterm() {
+  const { notify, load } = useStore.getState()
+  try {
+    const r = await window.api.vault.importMobaXterm()
+    if (!r) return
+    await load()
+    const parts = [`${r.hosts} host${r.hosts === 1 ? '' : 's'} imported`]
+    if (r.updated) parts.push(`${r.updated} updated`)
+    if (r.groups) parts.push(`${r.groups} group${r.groups === 1 ? '' : 's'}`)
+    if (r.jumpHosts) parts.push(`${r.jumpHosts} jump host${r.jumpHosts === 1 ? '' : 's'}`)
+    if (r.keys) parts.push(`${r.keys} key${r.keys === 1 ? '' : 's'}`)
+    if (r.keysMissing) parts.push(`${r.keysMissing} key file${r.keysMissing === 1 ? '' : 's'} not found (set them on the hosts)`)
+    if (r.skipped.length) {
+      const kinds = [...new Set(r.skipped.map((s) => s.kind))].join(', ')
+      parts.push(`${r.skipped.length} non-SSH session${r.skipped.length === 1 ? '' : 's'} skipped (${kinds})`)
+    }
+    notify(parts.join(' · '))
+  } catch (err) {
+    notify(errMsg(err), true)
+  }
+}
+
 export function errMsg(err: unknown): string {
   const m = err instanceof Error ? err.message : String(err)
   // Strip Electron's "Error invoking remote method 'x': Error: " prefix
