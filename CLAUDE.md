@@ -5,7 +5,8 @@ terminal tabs, dual-pane SFTP, remote file editor, port forwarding (local / remo
 SSH keys, identities, SSH agent (KeePassXC), snippets, known hosts, themes, encrypted export/import.
 No account, no cloud: everything lives in a local vault. Packaged for macOS, Windows and Linux.
 
-The owner writes in French; code, comments and commit messages are in English.
+Open source (MIT). Code, comments, docs and commit messages are in English. User and contributor
+docs live in README.md and docs/; keep them in sync when behavior changes.
 
 ## Stack
 
@@ -76,18 +77,17 @@ build/           icon.svg (source) → icon.png used by electron-builder; splash
 - Match the existing style: terse comments explaining *why*, small helpers, no new dependencies
   without a reason (check `npm audit --omit=dev` stays clean).
 - UI follows Termius' look (light default, dark supported via CSS variables in styles.css).
-- Commit and push to `origin main` after each finished feature (owner's preference), with a
-  descriptive conventional-commit message.
+- Conventional commits with a descriptive body; update CHANGELOG.md for user-visible changes.
 
 ## Gotchas
 
-- `npm run dev` restarts the whole app when a main-process file changes: it kills the owner's open
-  SSH sessions. Don't edit `src/main` while they are testing in dev mode without warning them.
-- To try the UI without touching the owner's data, run a separate instance:
+- `npm run dev` restarts the whole app when a main-process file changes, which closes open SSH
+  sessions. Warn before editing `src/main` while someone is testing in dev mode.
+- To try the UI without touching real data, run a separate instance:
   `./node_modules/.bin/electron . --user-data-dir=<scratch dir>` with a hand-written vault.json
   (the single-instance lock is per user-data dir).
-- In the owner's shell an `rtk` hook rewrites `npx …` (and filters some ls/grep output); in scripts
-  call `./node_modules/.bin/<tool>` directly. CI is unaffected.
+- Some shells wrap or rewrite `npx` (e.g. token-saving hooks); in scripts prefer calling
+  `./node_modules/.bin/<tool>` directly.
 - macOS packages can only be built on macOS. Windows/Linux packages also build on macOS without
   Wine (verified), which is why CI runs everything on one Mac.
 - Pasting into mongosh can garble the line display: that is a mongosh bracketed-paste bug, it also

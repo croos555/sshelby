@@ -318,17 +318,8 @@ export const THEMES: TermTheme[] = [
   )
 ]
 
-// Old ids from earlier versions
-const ALIASES: Record<string, string> = {
-  'termcraft-dark': 'sshelby-dark',
-  'termcraft-light': 'sshelby-light',
-  kanagawa: 'kanagawa-wave',
-  gruvbox: 'gruvbox-dark'
-}
-
 export function getTheme(id?: string | null): TermTheme {
-  const key = id ? ALIASES[id] || id : ''
-  return THEMES.find((x) => x.id === key) || THEMES[0]
+  return THEMES.find((x) => x.id === id) || THEMES[0]
 }
 
 // Color + short label for the OS badge shown on host cards and tabs

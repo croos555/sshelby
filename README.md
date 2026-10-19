@@ -1,27 +1,78 @@
-# Sshelby
+<p align="center">
+  <img src="build/icon.png" width="128" alt="Sshelby icon">
+</p>
 
-Local-first SSH client inspired by Termius: hosts and nested groups, terminal tabs, dual-pane SFTP, port forwarding (local, remote, SOCKS5), SSH key management, snippets and known hosts. No account, no cloud: everything is stored on your machine, with passwords and private keys encrypted through the OS keychain (Electron `safeStorage`).
+<h1 align="center">Sshelby</h1>
 
-Built with Electron, React, TypeScript, [ssh2](https://github.com/mscdex/ssh2) and [xterm.js](https://xtermjs.org/).
+<p align="center">
+  A local-first SSH client for macOS, Windows and Linux.<br>
+  Hosts and groups, terminal tabs, SFTP, port forwarding, keys and identities.<br>
+  <b>No account, no cloud, no telemetry.</b>
+</p>
 
-## Development
+---
+
+Sshelby is a desktop SSH client inspired by the look and workflow of Termius, with a few ideas
+borrowed from MobaXterm. Everything is stored on your machine, with passwords and private keys
+encrypted by your operating system's keychain.
+
+## Features
+
+- **Hosts & groups**: nested groups, grid / list / tree views with drag & drop, search, quick
+  connect (`user@host:port`), custom icons and colors, OS detection, tags.
+- **Credentials**: per-host credentials, reusable **identities** (password, SSH key or SSH agent),
+  "use parent credentials" inheritance through groups, saved or prompted passwords.
+- **SSH agent**: ssh-agent, KeePassXC's SSH agent, Pageant, Windows OpenSSH agent; pin an identity
+  to one key of the agent.
+- **Terminal**: xterm.js tabs, 30 color themes (per host or global), find, copy/paste, snippets,
+  optional **keyword highlighting** (errors, warnings, IPv4/IPv6, dates…), optional **status bar**
+  with the remote CPU, RAM, load and disk usage.
+- **SFTP**: dual-pane browser (local or any host on each side), drag & drop, transfers with
+  progress, rename, delete, chmod, and a **remote file editor** (or open in your local editor with
+  automatic upload on save).
+- **Port forwarding**: local, remote and dynamic (SOCKS5) rules, auto-start, live status.
+- **Keychain**: generate (Ed25519, ECDSA, RSA) or import SSH keys, copy or install the public key on
+  a host.
+- **Jump hosts**, **known hosts** with fingerprint verification, **host key change** warnings.
+- **Import / export**: `~/.ssh/config`, MobaXterm sessions, and an **encrypted, selective export**
+  (AES-256-GCM, scrypt) to move hosts to another machine.
+
+## Install
+
+Download the package for your system from the
+[releases / CI artifacts](https://gitlab.com/croos-perso/sshelby/-/pipelines):
+
+| System | File |
+|---|---|
+| macOS (Apple Silicon / Intel) | `Sshelby-<version>-arm64.dmg` / `-x64.dmg` |
+| Windows | `Sshelby Setup <version>.exe` (installer) or `Sshelby-<version>-portable.exe` |
+| Linux | `Sshelby-<version>.AppImage` or `sshelby_<version>_amd64.deb` |
+
+Builds are currently **unsigned**: on macOS use right-click → *Open* the first time, on Windows
+SmartScreen will ask for confirmation.
+
+## Documentation
+
+- [User guide](docs/user-guide.md)
+- [Security model](docs/security.md)
+- [Development](docs/development.md)
+- [Building & releasing](docs/building.md)
+- [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
+
+## Build from source
 
 ```bash
+git clone https://gitlab.com/croos-perso/sshelby.git
+cd sshelby
 npm install
-npm run dev        # run with hot reload
-npm run typecheck
+npm run dev          # run in development mode
+npm run dist:mac     # or dist:win / dist:linux
 ```
 
-## Packaging
+Requires Node.js 22.12 or later. See [Building & releasing](docs/building.md) for details.
 
-```bash
-npm run dist:mac     # .dmg + .zip (x64, arm64)
-npm run dist:win     # NSIS installer + portable .exe
-npm run dist:linux   # AppImage + .deb
-```
+## License
 
-Output goes to `dist/`. Builds are unsigned by default. The GitLab pipeline builds Linux and Windows packages on tags; the macOS job needs a GitLab-hosted macOS runner (Premium) or can be run locally.
+[MIT](LICENSE) © Christophe Roos
 
-## Data
-
-The vault lives in the app data folder (`~/Library/Application Support/sshelby` on macOS, `%APPDATA%\sshelby` on Windows, `~/.config/sshelby` on Linux). Settings → Data lets you export or import it as JSON (plain text, keep it safe) and import hosts from `~/.ssh/config`.
+Sshelby is an independent project and is not affiliated with Termius or MobaXterm.

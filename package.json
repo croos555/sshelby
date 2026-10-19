@@ -1,9 +1,9 @@
 {
   "name": "sshelby",
   "version": "0.1.0",
-  "description": "Local-first SSH client: hosts, groups, SFTP, port forwarding, keychain",
+  "description": "Local-first SSH client: hosts and groups, terminal, SFTP, port forwarding, keys and identities. No account, no cloud.",
   "main": "./out/main/index.js",
-  "author": "croos",
+  "author": "Christophe Roos",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -93,7 +93,7 @@
           ]
         }
       ],
-      "maintainer": "croos"
+      "maintainer": "Christophe Roos"
     }
   },
   "dependencies": {
@@ -128,6 +128,18 @@
   "homepage": "https://gitlab.com/croos-perso/sshelby",
   "repository": {
     "type": "git",
-    "url": "git@gitlab.com:croos-perso/sshelby.git"
-  }
+    "url": "https://gitlab.com/croos-perso/sshelby.git"
+  },
+  "bugs": {
+    "url": "https://gitlab.com/croos-perso/sshelby/-/issues"
+  },
+  "keywords": [
+    "ssh",
+    "sftp",
+    "terminal",
+    "port-forwarding",
+    "ssh-client",
+    "electron",
+    "termius-alternative"
+  ]
 }

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, safeStorage } from 'electron'
-import { copyFileSync, existsSync, readFileSync, renameSync, writeFileSync, mkdirSync } from 'fs'
-import { dirname, join } from 'path'
+import { existsSync, readFileSync, renameSync, writeFileSync, mkdirSync } from 'fs'
+import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { Collection, DEFAULT_SETTINGS, Settings, Vault } from '@shared/types'
 
@@ -62,9 +62,6 @@ class Store {
     const dir = app.getPath('userData')
     mkdirSync(dir, { recursive: true })
     this.file = join(dir, 'vault.json')
-    // The app used to be called Termcraft: carry its vault over on first launch
-    const legacy = join(dirname(dir), 'termcraft', 'vault.json')
-    if (!existsSync(this.file) && existsSync(legacy)) copyFileSync(legacy, this.file)
     if (!existsSync(this.file)) {
       this.save()
       return
@@ -76,17 +73,6 @@ class Store {
         { ...base, ...raw, settings: { ...base.settings, ...(raw.settings || {}) } },
         decrypt
       )
-      this.vault.settings.theme = this.vault.settings.theme.replace(/^termcraft-/, 'sshelby-')
-      // KeePass database reading was replaced by the SSH agent (KeePassXC's SSH agent integration)
-      delete (this.vault as any).keepass
-      for (const i of this.vault.identities as any[]) {
-        if (i.authType === 'keepass') {
-          i.authType = 'agent'
-          delete i.keepassDbId
-          delete i.keepassEntryUuid
-          delete i.keepassEntryLabel
-        }
-      }
     } catch (err) {
       // Keep the unreadable file around rather than silently overwriting it
       renameSync(this.file, this.file + '.corrupt-' + Date.now())
