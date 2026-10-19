@@ -5,7 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links'
 import { SearchAddon } from '@xterm/addon-search'
 import { Braces, Palette, PanelRightClose, PanelRightOpen, RotateCw, X, Search } from 'lucide-react'
 import { Tab, useStore } from '../store'
-import { getTheme, THEMES, TermTheme } from '../themes'
+import { getTheme, resolveThemeSource, THEMES, TermTheme } from '../themes'
 import type { HostStats } from '@shared/types'
 import StatusBar from './StatusBar'
 import { DEFAULT_RULES, Highlighter } from '../highlight'
@@ -24,8 +24,9 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
   const [side, setSide] = useState<'snippets' | 'themes' | null>(null)
   const [findOpen, setFindOpen] = useState(false)
   const [themeQuery, setThemeQuery] = useState('')
-  const [themeScope, setThemeScope] = useState<'host' | 'default'>('host')
-  const hostTheme = vault!.hosts.find((h) => h.id === tab.hostId)?.theme
+  const [themeScope, setThemeScope] = useState<'host' | 'group' | 'default'>('host')
+  const themeSource = resolveThemeSource(vault!, tab.hostId)
+  const hostTheme = themeSource.id
   const [stats, setStats] = useState<HostStats | null>(null)
   const highlighter = useRef(new Highlighter())
   useEffect(() => {
@@ -64,7 +65,7 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
       fontSize: settings.fontSize,
       cursorBlink: settings.cursorBlink,
       scrollback: settings.scrollback,
-      theme: getTheme(hostTheme || settings.theme).theme,
+      theme: getTheme(hostTheme).theme,
       allowProposedApi: true,
       // Off by default: Option must type { } [ ] | ~ on AZERTY / international Mac layouts
       macOptionIsMeta: settings.optionAsMeta
@@ -151,7 +152,7 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
   useEffect(() => {
     const t = term.current
     if (!t) return
-    t.options.theme = getTheme(hostTheme || settings.theme).theme
+    t.options.theme = getTheme(hostTheme).theme
     t.options.fontFamily = settings.fontFamily
     t.options.fontSize = settings.fontSize
     t.options.cursorBlink = settings.cursorBlink
@@ -169,12 +170,14 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
     }
   }, [active, side])
 
-  const activeTheme = getTheme(hostTheme || settings.theme)
+  const activeTheme = getTheme(hostTheme)
   const theme = activeTheme.theme
   const host = vault!.hosts.find((h) => h.id === tab.hostId)
+  const hostGroup = host?.groupId ? vault!.groups.find((g) => g.id === host.groupId) : undefined
   const q = themeQuery.toLowerCase()
   const pickTheme = (th: TermTheme) => {
     if (themeScope === 'host' && host) upsert('hosts', { ...host, theme: th.id })
+    else if (themeScope === 'group' && hostGroup) upsert('groups', { ...hostGroup, theme: th.id })
     else saveSettings({ theme: th.id })
   }
   const themeGroup = (label: string, list: TermTheme[]) =>
@@ -192,6 +195,9 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
               {th.name}
               {settings.theme === th.id && <small>default</small>}
               {host?.theme === th.id && <small>this host</small>}
+              {!host?.theme && themeSource.from === 'group' && themeSource.id === th.id && (
+                <small>group {themeSource.group?.name}</small>
+              )}
             </span>
           </button>
         ))}
@@ -337,13 +343,26 @@ export default function TerminalTab({ tab, active }: { tab: Tab; active: boolean
                     <button className={themeScope === 'host' ? 'on' : ''} disabled={!host} onClick={() => setThemeScope('host')}>
                       This host
                     </button>
+                    <button
+                      className={themeScope === 'group' ? 'on' : ''}
+                      disabled={!hostGroup}
+                      title={hostGroup ? `Group “${hostGroup.name}” and its hosts` : 'This host is not in a group'}
+                      onClick={() => setThemeScope('group')}
+                    >
+                      Group
+                    </button>
                     <button className={themeScope === 'default' ? 'on' : ''} onClick={() => setThemeScope('default')}>
                       Default
                     </button>
                   </div>
                   {themeScope === 'host' && host?.theme && (
                     <button className="reset" onClick={() => upsert('hosts', { ...host, theme: null })}>
-                      Use default theme for this host
+                      Inherit the theme ({themeSource.from === 'host' ? 'group or default' : themeSource.from})
+                    </button>
+                  )}
+                  {themeScope === 'group' && hostGroup?.theme && (
+                    <button className="reset" onClick={() => upsert('groups', { ...hostGroup, theme: null })}>
+                      Clear the theme of group “{hostGroup.name}”
                     </button>
                   )}
                   <div className="font-row">

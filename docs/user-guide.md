@@ -17,7 +17,8 @@ views with the buttons at the top right.
 - **Icon and color**: click the icon in the host or group editor. *Auto* shows the operating system
   badge (detected on first connection) for hosts and a folder for groups.
 - **Show more** in the host editor: jump host, startup snippet, keep-alive, agent forwarding,
-  terminal theme.
+  terminal theme (empty = inherited from the group or the default).
+- Groups can also set a default **terminal theme** for everything inside them.
 
 ## Credentials
 
@@ -63,8 +64,12 @@ The private key never leaves KeePassXC.
 
 - `⌘/Ctrl+F` find, `⌘C` / `⌘V` (macOS) or `Ctrl+Shift+C` / `Ctrl+Shift+V` copy and paste,
   right-click copies the selection or pastes.
-- **Side panel** (button at the top right of a terminal): snippets, themes (for this host or as the
-  default), font size, keyword highlighting and status bar toggles.
+- **Side panel** (button at the top right of a terminal): snippets, themes, font size, keyword
+  highlighting and status bar toggles.
+- **Themes** apply at three levels: a **host** theme wins, otherwise the theme of the nearest
+  **group** that sets one (subgroups and their hosts inherit it), otherwise the **default** theme.
+  Pick the level in the side panel (*This host* / *Group* / *Default*), or set it in the host and
+  group editors.
 - **Status bar** (Settings → Terminal): remote CPU, RAM, load and disk usage, sampled every 5 s over
   the existing connection while the tab is visible. Nothing is installed on the server.
 - **Keyword highlighting** (Settings → Keyword highlighting): colors errors, warnings, success,

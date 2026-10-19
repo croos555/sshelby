@@ -23,7 +23,7 @@ import { errMsg, useStore } from '../store'
 import { confirmDialog, Field, GroupIcon, HostIcon, Panel, Select, Switch } from './ui'
 import Credentials from './Credentials'
 import { IconPicker } from './icons'
-import { THEMES } from '../themes'
+import { getTheme, groupThemeSource, THEMES } from '../themes'
 
 export function groupPath(groups: Group[], id?: string | null): string {
   const parts: string[] = []
@@ -223,7 +223,10 @@ export function HostEditor({ initial }: { initial: Partial<Host> }) {
               value={h.theme}
               onChange={(v) => set({ theme: v })}
               options={THEMES.map((t) => ({ value: t.id, label: `${t.name}${t.dark ? '' : ' (light)'}` }))}
-              placeholder="Terminal theme (default)"
+              placeholder={(() => {
+                const src = groupThemeSource(vault, h.groupId)
+                return `Theme: inherit ${getTheme(src.id).name}${src.group ? ` (group ${src.group.name})` : ' (default)'}`
+              })()}
             />
             <Field
               icon={Globe}
@@ -338,6 +341,16 @@ export function GroupEditor({ initial }: { initial: Partial<Group> }) {
           onChange={(v) => set({ jumpHostId: v })}
           options={vault.hosts.map((x) => ({ value: x.id, label: x.label || x.address }))}
           placeholder="Jump host (none)"
+        />
+        <Select
+          icon={Palette}
+          value={g.theme}
+          onChange={(v) => set({ theme: v })}
+          options={THEMES.map((t) => ({ value: t.id, label: `${t.name}${t.dark ? '' : ' (light)'}` }))}
+          placeholder={(() => {
+            const src = groupThemeSource(vault, g.parentId)
+            return `Terminal theme: inherit ${getTheme(src.id).name}${src.group ? ` (group ${src.group.name})` : ' (default)'}`
+          })()}
         />
       </div>
     </Panel>

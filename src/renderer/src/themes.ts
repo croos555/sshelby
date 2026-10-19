@@ -1,4 +1,5 @@
 import type { ITheme } from '@xterm/xterm'
+import type { Group, Vault } from '@shared/types'
 
 export interface TermTheme {
   id: string
@@ -317,6 +318,39 @@ export const THEMES: TermTheme[] = [
     { selectionBackground: '#49483e' }
   )
 ]
+
+// Host theme, else the nearest group that sets one, else the global default
+export function resolveThemeSource(
+  vault: Vault,
+  hostId?: string
+): { id: string; from: 'host' | 'group' | 'default'; group?: Group } {
+  const host = hostId ? vault.hosts.find((h) => h.id === hostId) : undefined
+  if (host?.theme) return { id: host.theme, from: 'host' }
+  let gid = host?.groupId
+  const seen = new Set<string>()
+  while (gid && !seen.has(gid)) {
+    seen.add(gid)
+    const g = vault.groups.find((x) => x.id === gid)
+    if (!g) break
+    if (g.theme) return { id: g.theme, from: 'group', group: g }
+    gid = g.parentId
+  }
+  return { id: vault.settings.theme, from: 'default' }
+}
+
+// Theme a group's hosts get when they don't override it (used for the group editor's hint)
+export function groupThemeSource(vault: Vault, groupId?: string | null) {
+  let gid = groupId
+  const seen = new Set<string>()
+  while (gid && !seen.has(gid)) {
+    seen.add(gid)
+    const g = vault.groups.find((x) => x.id === gid)
+    if (!g) break
+    if (g.theme) return { id: g.theme, group: g }
+    gid = g.parentId
+  }
+  return { id: vault.settings.theme, group: undefined }
+}
 
 export function getTheme(id?: string | null): TermTheme {
   return THEMES.find((x) => x.id === id) || THEMES[0]

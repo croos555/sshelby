@@ -14,6 +14,8 @@ export interface Group {
   // Take credentials from the parent group instead of the fields above
   inheritCredentials?: boolean
   jumpHostId?: string | null
+  // Terminal theme for hosts in this group (and subgroups) that don't set their own
+  theme?: string | null
   createdAt: number
 }
 

@@ -3,6 +3,12 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Terminal theme per group, inherited by subgroups and hosts unless they set their own; *Group*
+  scope in the terminal theme panel.
+
 ## [0.1.0] — first public release
 
 ### Added
