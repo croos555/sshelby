@@ -16,7 +16,12 @@ add-ons are excluded so the app is pure JavaScript on every platform.
 
 ## Continuous integration
 
-### GitHub Actions (`.github/workflows/build.yml`)
+### Checks (`.github/workflows/ci.yml`)
+
+Every push to `main` and every pull request runs `npm ci`, the typecheck, the build and
+`npm audit --omit=dev`. Dependabot (`.github/dependabot.yml`) opens weekly dependency updates.
+
+### Packages (`.github/workflows/build.yml`)
 
 Builds every package on GitHub-hosted runners (macOS, Windows, Linux), free for public repositories.
 It runs on tags `v*` and manually (*Actions → Build → Run workflow*). Packages are uploaded as

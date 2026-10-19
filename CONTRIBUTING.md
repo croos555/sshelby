@@ -2,6 +2,8 @@
 
 Thanks for your interest in Sshelby!
 
+Please read and follow the [code of conduct](CODE_OF_CONDUCT.md).
+
 ## Reporting bugs and ideas
 
 Open an issue on [GitHub](https://github.com/croos555/sshelby/issues) with your OS, the

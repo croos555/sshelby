@@ -56,7 +56,7 @@ SmartScreen will ask for confirmation.
 - [Security model](docs/security.md)
 - [Development](docs/development.md)
 - [Building & releasing](docs/building.md)
-- [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
 
 ## Build from source
 

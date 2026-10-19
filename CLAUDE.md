@@ -8,7 +8,29 @@ No account, no cloud: everything lives in a local vault. Packaged for macOS, Win
 Open source (MIT). Code, comments, docs and commit messages are in English. User and contributor
 docs live in README.md and docs/; keep them in sync when behavior changes.
 
-## Stack
+## Open source standards (non-negotiable)
+
+Sshelby is a public MIT project on GitHub (github.com/croos555/sshelby). Every change must meet the
+standards expected of a well-run open source repository:
+
+- **History**: small, focused commits with [Conventional Commits](https://www.conventionalcommits.org/)
+  messages (`feat:`, `fix:`, `docs:`, `chore:`, `ci:`…) and a body explaining *why*. Never commit
+  secrets, personal data, local paths or machine-specific config. Never rewrite published history or
+  force-push `main` without the maintainer's explicit approval.
+- **Versioning**: [Semantic Versioning](https://semver.org/); `package.json` version, `CHANGELOG.md`
+  ([Keep a Changelog](https://keepachangelog.com/), user-visible changes under *Unreleased*) and the
+  `vX.Y.Z` tag must agree. Releases are cut by pushing an annotated tag; CI drafts the GitHub release.
+- **Quality gates**: `npm run typecheck` and `npm run build` must pass before pushing; the CI workflow
+  checks every push and pull request. Keep `npm audit --omit=dev` clean and dependencies MIT-compatible.
+- **Docs in sync**: README, `docs/`, CHANGELOG and this file are updated in the same commit as the
+  behavior they describe. User-facing text is in English.
+- **Community files** stay current: LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY (private
+  vulnerability reporting), issue and PR templates.
+- **Security**: secrets encrypted at rest, no telemetry, renderer isolation kept intact; anything
+  touching credentials or the export format is reviewed with extra care and documented in
+  `docs/security.md`.
+
+
 
 Electron + electron-vite, React 19 + TypeScript, zustand, `ssh2` (SSH, SFTP, agent), xterm.js,
 CodeMirror 6 (editor), lucide-react (icons). **No native modules**: keep it that way so every
