@@ -48,7 +48,7 @@ Download the package for your system from the [releases](https://github.com/croo
 | Linux | `Sshelby-<version>.AppImage`, `sshelby_<version>_amd64.deb` or `sshelby-<version>.x86_64.rpm` |
 
 Windows releases are code-signed (Certum); SmartScreen may still warn until the app builds up
-reputation. macOS builds are not signed yet: use right-click → *Open* the first time.
+reputation. macOS releases are signed with a Developer ID and notarized by Apple.
 
 ## Documentation
 

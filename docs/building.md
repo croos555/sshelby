@@ -59,11 +59,37 @@ re-issued: consider moving the secrets to a protected GitHub environment with re
 To sign by hand on a workstation, install ssign and use a one-shot code from the SimplySign mobile
 app: `ssign -e you@example.com -T 123456 app.exe`.
 
-### macOS
+### macOS (Developer ID + notarization)
 
-Builds are unsigned (`CSC_IDENTITY_AUTO_DISCOVERY=false`). Signing needs an Apple Developer ID
-certificate (`CSC_LINK` / `CSC_KEY_PASSWORD`) plus notarization credentials (`APPLE_ID`,
-`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`).
+On `v*` tags, the macOS job signs the app with a **Developer ID Application** certificate, with the
+hardened runtime, and has Apple notarize it (`notarytool` with an App Store Connect API key);
+electron-builder staples the ticket to the app. The certificate is imported into a dedicated
+keychain created for the job (electron-builder's own temporary keychain fails to unlock on hosted
+runners). The job then checks `codesign --verify`, `spctl --assess` (must report *Notarized Developer
+ID*) and `stapler validate`.
+
+Repository secrets:
+
+| Secret | Value |
+|---|---|
+| `MAC_CSC_LINK` | the Developer ID Application certificate and its private key, exported from Keychain Access as `.p12`, **base64-encoded** |
+| `MAC_CSC_KEY_PASSWORD` | the `.p12` password |
+| `APPLE_API_KEY_BASE64` | the App Store Connect API key (`AuthKey_XXXXXXXXXX.p8`, *Developer* access), base64-encoded |
+| `APPLE_API_KEY_ID` | the key ID |
+| `APPLE_API_ISSUER` | the issuer ID shown above the keys list |
+
+```bash
+base64 -i developer-id.p12 | gh secret set MAC_CSC_LINK --repo croos555/sshelby
+base64 -i AuthKey_XXXXXXXXXX.p8 | gh secret set APPLE_API_KEY_BASE64 --repo croos555/sshelby
+```
+
+The `.p12` and `.p8` are written to the runner's temp folder only for the build and deleted
+afterwards, along with the keychain. Without the secrets (forks, manual runs) macOS builds stay
+unsigned.
+
+Locally, `npm run dist:mac` signs automatically when a Developer ID certificate is in your keychain
+(notarization additionally needs `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` and
+`-c.mac.notarize=true`).
 
 Never store certificates or passwords in the repository.
 
