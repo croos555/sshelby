@@ -29,16 +29,37 @@ workflow artifacts; on a tag, a **draft release** is created with all of them at
 
 ## Code signing
 
-Builds are unsigned by default (`CSC_IDENTITY_AUTO_DISCOVERY=false`).
+### Windows (Certum Code Signing in the Cloud)
 
-- **macOS**: an Apple Developer ID certificate (`CSC_LINK` / `CSC_KEY_PASSWORD`) plus notarization
-  credentials (`APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`).
-- **Windows**: code signing keys must live in hardware or a cloud HSM. Options supported by
-  electron-builder: Azure Trusted Signing, or an OV certificate from a provider with cloud signing
-  (Certum, SSL.com, DigiCert…) through a custom sign script (for example with
-  [jsign](https://ebourg.github.io/jsign/), which runs on macOS and Linux).
+Windows executables are signed with a Certum open source code signing certificate kept in Certum's
+cloud (SimplySign). The release workflow does it automatically on `v*` tags:
 
-Store certificates and passwords as protected CI variables, never in the repository.
+1. [`jay0lee/certum-cloud-code-sign`](https://github.com/jay0lee/certum-cloud-code-sign) (pinned to a
+   reviewed commit) installs SimplySign Desktop on the Windows runner and logs in with a TOTP code
+   computed from the account's secret, which mounts the certificate in the Windows store.
+2. electron-builder calls [`build/sign-win.js`](../build/sign-win.js) for every executable (app,
+   installer, uninstaller, portable): `signtool` with SHA-256 and an RFC 3161 timestamp from
+   `http://time.certum.pl`.
+3. The signatures are verified (`signtool verify /pa`), then the SimplySign session is closed.
+
+Repository secrets (*Settings → Secrets and variables → Actions*):
+
+| Secret | Value |
+|---|---|
+| `CERTUM_USERNAME` | e-mail of the SimplySign account |
+| `CERTUM_TOTP_SECRET` | Base32 TOTP secret: the `secret=` parameter of the QR code shown when activating SimplySign (regenerate the QR code in the Certum account if it wasn't kept) |
+
+Without these secrets (local builds, pull requests from forks) the hook does nothing and the build
+stays unsigned. The TOTP secret allows signing in the maintainer's name: consider moving the secrets
+to a protected GitHub environment with required reviewers.
+
+### macOS
+
+Builds are unsigned (`CSC_IDENTITY_AUTO_DISCOVERY=false`). Signing needs an Apple Developer ID
+certificate (`CSC_LINK` / `CSC_KEY_PASSWORD`) plus notarization credentials (`APPLE_ID`,
+`APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`).
+
+Never store certificates or passwords in the repository.
 
 ## Releasing
 

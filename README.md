@@ -47,8 +47,8 @@ Download the package for your system from the [releases](https://github.com/croo
 | Windows | `Sshelby Setup <version>.exe` (installer) or `Sshelby-<version>-portable.exe` |
 | Linux | `Sshelby-<version>.AppImage` or `sshelby_<version>_amd64.deb` |
 
-Builds are currently **unsigned**: on macOS use right-click → *Open* the first time, on Windows
-SmartScreen will ask for confirmation.
+Windows releases are code-signed (Certum); SmartScreen may still warn until the app builds up
+reputation. macOS builds are not signed yet: use right-click → *Open* the first time.
 
 ## Documentation
 

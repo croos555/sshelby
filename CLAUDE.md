@@ -119,4 +119,6 @@ build/           icon.svg (source) → icon.png used by electron-builder; splash
 
 - GitHub Actions (`.github/workflows/build.yml`): macOS, Windows and Linux packages on
   GitHub-hosted runners for tags `v*` and manual runs; tags create a draft release.
-- Builds are unsigned (`CSC_IDENTITY_AUTO_DISCOVERY=false`).
+- Windows signing: Certum cloud certificate via SimplySign on release tags (`build/sign-win.js`,
+  secrets `CERTUM_USERNAME` / `CERTUM_TOTP_SECRET`, see docs/building.md). Third-party actions that
+  receive secrets are pinned to a reviewed commit SHA. macOS builds are unsigned.

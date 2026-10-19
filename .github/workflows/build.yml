@@ -22,8 +22,10 @@ jobs:
             args: --linux
     runs-on: ${{ matrix.os }}
     env:
-      # Unsigned builds; add signing secrets here when available
+      # macOS builds are unsigned for now (no Developer ID certificate)
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Windows: sign with the Certum cloud certificate on release tags when the secrets exist
+      SIGN_WINDOWS: ${{ matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/v') && secrets.CERTUM_TOTP_SECRET != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +37,34 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npx electron-vite build
+
+      # Logs SimplySign Desktop in (TOTP) so the certificate is usable by signtool.
+      # Pinned to a reviewed commit: it receives the signing credentials.
+      - name: Set up Certum code signing
+        id: certum
+        if: env.SIGN_WINDOWS == 'true'
+        uses: jay0lee/certum-cloud-code-sign@a3324503499c49090869856eeeecfe95fb613d87 # v1
+        with:
+          username: ${{ secrets.CERTUM_USERNAME }}
+          totp_secret: ${{ secrets.CERTUM_TOTP_SECRET }}
+
+      # build/sign-win.js signs every exe (app, installer, uninstaller, portable) when CERTUM_THUMBPRINT is set
       - run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          CERTUM_THUMBPRINT: ${{ steps.certum.outputs.cert-thumbprint }}
+          SIGNTOOL_PATH: ${{ steps.certum.outputs.signtool-path }}
+
+      - name: Verify Windows signatures
+        if: env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist -Filter *.exe
+          foreach ($f in $files) { & "${{ steps.certum.outputs.signtool-path }}" verify /pa /tw $f.FullName; if ($LASTEXITCODE) { exit 1 } }
+          & "${{ steps.certum.outputs.signtool-path }}" verify /pa dist/win-unpacked/Sshelby.exe; if ($LASTEXITCODE) { exit 1 }
+
+      - name: Close the SimplySign session
+        if: always() && steps.certum.outcome != 'skipped'
+        uses: jay0lee/certum-cloud-code-sign/teardown@a3324503499c49090869856eeeecfe95fb613d87 # v1
 
       - uses: actions/upload-artifact@v4
         with:
