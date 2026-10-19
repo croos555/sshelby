@@ -22,21 +22,6 @@ Builds every package on GitHub-hosted runners (macOS, Windows, Linux), free for 
 It runs on tags `v*` and manually (*Actions → Build → Run workflow*). Packages are uploaded as
 workflow artifacts; on a tag, a **draft release** is created with all of them attached.
 
-### GitLab CI (`.gitlab-ci.yml`)
-
-A single `build` job runs on a **self-hosted macOS runner** and produces all packages
-(macOS, Windows, Linux) as job artifacts.
-
-1. On a Mac: `brew install gitlab-runner`.
-2. In the project: *Settings → CI/CD → Runners → New project runner*, tag `macos`.
-3. Register it with the shell executor:
-   `gitlab-runner register --url https://gitlab.com --token <glrt-token> --executor shell`
-4. Start it: `brew services start gitlab-runner`.
-
-The job runs automatically from *Run pipeline* and on tags, and manually on pushes to the default
-branch. Use the `MAC_RUNNER_TAG` CI/CD variable if your runner has another tag (for example
-`saas-macos-medium-m1` for GitLab-hosted macOS runners, available on paid plans).
-
 ### Jenkins (`Jenkinsfile`)
 
 Builds Linux and Windows packages inside `electronuserland/builder:24-wine` (the agent needs

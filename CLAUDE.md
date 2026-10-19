@@ -89,15 +89,14 @@ build/           icon.svg (source) → icon.png used by electron-builder; splash
 - Some shells wrap or rewrite `npx` (e.g. token-saving hooks); in scripts prefer calling
   `./node_modules/.bin/<tool>` directly.
 - macOS packages can only be built on macOS. Windows/Linux packages also build on macOS without
-  Wine (verified), which is why CI runs everything on one Mac.
+  Wine (verified).
 - Pasting into mongosh can garble the line display: that is a mongosh bracketed-paste bug, it also
   happens in other terminals.
 
 ## CI
 
-- GitLab (`.gitlab-ci.yml`): single `build` job on a self-hosted Mac runner (gitlab-runner, shell
-  executor, tag `macos`, override with `MAC_RUNNER_TAG`). Builds all 9 packages; auto on
-  "Run pipeline" and tags, manual on pushes to main.
+- GitHub Actions (`.github/workflows/build.yml`): macOS, Windows and Linux packages on
+  GitHub-hosted runners for tags `v*` and manual runs; tags create a draft release.
 - Jenkins (`Jenkinsfile`): Linux/Windows in `electronuserland/builder:24-wine`, optional macOS stage
   on an agent labelled `macos` (`BUILD_MAC`, gated with `beforeAgent`).
 - Builds are unsigned (`CSC_IDENTITY_AUTO_DISCOVERY=false`).
