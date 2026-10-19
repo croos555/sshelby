@@ -97,6 +97,12 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "maintainer": "Christophe Roos"

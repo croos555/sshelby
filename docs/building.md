@@ -5,7 +5,7 @@
 ```bash
 npm run dist:mac       # dmg + zip, x64 and arm64   (dist:mac:arm = Apple Silicon only)
 npm run dist:win       # NSIS installer (x64 + arm64) + portable exe (x64)
-npm run dist:linux     # AppImage (x64 + arm64) + deb (x64)
+npm run dist:linux     # AppImage (x64 + arm64) + deb (x64) + rpm (x64, needs rpmbuild)
 ```
 
 Output goes to `dist/`. macOS packages can only be built on macOS; Windows and Linux packages can be

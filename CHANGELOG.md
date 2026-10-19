@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Linux `.rpm` package (Fedora, RHEL, openSUSE…) next to the AppImage and `.deb`.
+
 ## [0.1.1] — 2026-10-19
 
 ### Added
