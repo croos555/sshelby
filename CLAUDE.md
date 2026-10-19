@@ -125,4 +125,9 @@ build/           icon.svg (source) → icon.png used by electron-builder; splash
   on release tags (`build/sign-win.js`, secrets `CERTUM_USERNAME` / `CERTUM_TOTP_SECRET` in Base32,
   see docs/building.md). Third-party tools that receive secrets are pinned (release + SHA-256 or
   commit SHA) after review. SimplySign Desktop on GitHub's Windows runner does not work: its virtual
-  smart card reader never registers. macOS builds are unsigned.
+  smart card reader never registers.
+- macOS signing: Developer ID certificate in a dedicated CI keychain + notarization (notarytool,
+  App Store Connect API key) on release tags; secrets `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`,
+  `APPLE_API_KEY_BASE64`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` (see docs/building.md). The verify
+  step requires spctl "source=Notarized Developer ID" and a stapled ticket. The account's first
+  notarization can take ~45 min.

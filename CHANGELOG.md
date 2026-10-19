@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-10-19
+
 ### Added
 - macOS apps are signed with a Developer ID certificate and notarized by Apple: no more
   "unidentified developer" warning.
