@@ -19,6 +19,7 @@ import ForwardsView, { ForwardEditor } from './views/ForwardsView'
 import { KnownHostsView, SettingsView, SnippetEditor, SnippetsView } from './views/MiscViews'
 import { GroupEditor, HostEditor } from './components/HostEditor'
 import TerminalTab from './components/TerminalTab'
+import HostsOverview from './components/HostsOverview'
 import SftpTab from './components/SftpTab'
 import EditorTab from './components/EditorTab'
 import PromptModal from './components/PromptModal'
@@ -176,7 +177,7 @@ export default function App() {
             {view === 'snippets' && <SnippetsView />}
             {view === 'knownHosts' && <KnownHostsView />}
             {view === 'settings' && <SettingsView />}
-            {editor}
+            {editor || (view === 'hosts' && <HostsOverview />)}
           </>
         )}
         {/* Sessions stay mounted so terminals keep their state while hidden */}

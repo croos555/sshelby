@@ -1764,3 +1764,51 @@ textarea.input {
   color: var(--accent);
   border-color: var(--accent);
 }
+
+/* ---------- hosts overview panel ---------- */
+
+.ov-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.ov-stat {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--input);
+  color: var(--text-2);
+  text-align: left;
+  font-size: 12px;
+}
+.ov-stat b {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+.ov-stat:not(:disabled):hover {
+  background: var(--accent-soft);
+}
+.ov-stat:disabled {
+  cursor: default;
+}
+.ov-tips {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ov-tips code,
+.ov-tips kbd {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  background: var(--input);
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
