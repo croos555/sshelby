@@ -34,8 +34,8 @@ workflow artifacts; on a tag, a **draft release** is created with all of them at
 Windows executables are signed with a Certum open source code signing certificate kept in Certum's
 cloud (SimplySign). The release workflow does it automatically on `v*` tags:
 
-Windows packages are built **on Linux** (`build-windows` job on `ubuntu-latest`; electron-builder
-needs no Wine for the NSIS installer), then:
+Windows packages are built **on Linux** (`build-windows` job on `ubuntu-latest`, with Wine for the
+NSIS uninstaller stub), then:
 
 1. [ssign](https://github.com/Le-Syl21/ssign) (pinned release, SHA-256 verified) is installed in the
    job. It talks to Certum's cloud API over HTTPS and computes the one-time password from

@@ -45,7 +45,7 @@ jobs:
             dist/*.deb
           if-no-files-found: error
 
-  # Windows packages are built and signed on Linux (no Wine needed by electron-builder; ssign signs).
+  # Windows packages are built and signed on Linux: Wine runs the NSIS uninstaller stub, ssign signs.
   # Runs on the host: ssign's Linux binary needs the glibc of Ubuntu 24.04.
   build-windows:
     runs-on: ubuntu-latest
@@ -64,6 +64,14 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npx electron-vite build
+
+      # electron-builder runs the 32-bit NSIS stub under Wine to produce the uninstaller
+      - name: Install Wine
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends wine64 wine32:i386 >/dev/null
+          wine --version
 
       # ssign signs through Certum's cloud API over HTTPS. Pinned release, checksum verified.
       - name: Install ssign and osslsigncode
