@@ -119,6 +119,8 @@ build/           icon.svg (source) → icon.png used by electron-builder; splash
 
 - GitHub Actions (`.github/workflows/build.yml`): macOS, Windows and Linux packages on
   GitHub-hosted runners for tags `v*` and manual runs; tags create a draft release.
-- Windows signing: Certum cloud certificate via SimplySign on release tags (`build/sign-win.js`,
-  secrets `CERTUM_USERNAME` / `CERTUM_TOTP_SECRET`, see docs/building.md). Third-party actions that
-  receive secrets are pinned to a reviewed commit SHA. macOS builds are unsigned.
+- Windows signing: Certum cloud certificate through ssign (Certum cloud API, no SimplySign Desktop)
+  on release tags (`build/sign-win.js`, secrets `CERTUM_USERNAME` / `CERTUM_TOTP_SECRET` in Base32,
+  see docs/building.md). Third-party tools that receive secrets are pinned (release + SHA-256 or
+  commit SHA) after review. SimplySign Desktop on GitHub's Windows runner does not work: its virtual
+  smart card reader never registers. macOS builds are unsigned.

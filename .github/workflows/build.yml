@@ -38,58 +38,32 @@ jobs:
       - run: npm run typecheck
       - run: npx electron-vite build
 
-      # SimplySign exposes a virtual smart card; Windows copies its certificate into the user store only
-      # through these services, which are stopped on the Windows Server runner image
-      - name: Start smart card services
+      # ssign signs through Certum's cloud API (no SimplySign Desktop). Pinned release, checksum verified.
+      - name: Install ssign
         if: env.SIGN_WINDOWS == 'true'
         shell: pwsh
         run: |
-          foreach ($svc in 'SCardSvr', 'ScDeviceEnum', 'CertPropSvc') {
-            Set-Service -Name $svc -StartupType Manual -ErrorAction SilentlyContinue
-            Start-Service -Name $svc -ErrorAction SilentlyContinue
-          }
-          Get-Service SCardSvr, ScDeviceEnum, CertPropSvc | Format-Table Name, Status, StartType
+          $zip = "$env:RUNNER_TEMP\ssign.zip"
+          Invoke-WebRequest https://github.com/Le-Syl21/ssign/releases/download/v0.1.8/ssign-windows-x86_64.zip -OutFile $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne '89cbac647d19819a1a82645d2254ac51d2b34050835421294584385dadde1298') { throw "ssign checksum mismatch: $hash" }
+          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP\ssign"
+          "SSIGN_PATH=$env:RUNNER_TEMP\ssign\ssign.exe" >> $env:GITHUB_ENV
 
-      # Logs SimplySign Desktop in (TOTP) so the certificate is usable by signtool.
-      # Pinned to a reviewed commit: it receives the signing credentials.
-      - name: Set up Certum code signing
-        id: certum
-        if: env.SIGN_WINDOWS == 'true'
-        uses: jay0lee/certum-cloud-code-sign@a3324503499c49090869856eeeecfe95fb613d87 # v1
-        with:
-          username: ${{ secrets.CERTUM_USERNAME }}
-          totp_secret: ${{ secrets.CERTUM_TOTP_SECRET }}
-          # Troubleshooting knobs as repository variables (Settings → Secrets and variables → Variables):
-          # CERTUM_DEBUG=true uploads screenshots of the login flow, CERTUM_TOTP_ALGORITHM overrides SHA-256
-          totp_algorithm: ${{ vars.CERTUM_TOTP_ALGORITHM || 'SHA-256' }}
-          debug: ${{ vars.CERTUM_DEBUG == 'true' }}
-
-      - name: Smart card diagnostics
-        if: failure() && steps.certum.outcome == 'failure'
-        shell: pwsh
-        run: |
-          Get-Service SCardSvr, ScDeviceEnum, CertPropSvc | Format-Table Name, Status, StartType
-          Get-Process SimplySign* -ErrorAction SilentlyContinue | Format-Table Name, Id
-          certutil -scinfo -silent 2>&1 | Select-String -Pattern 'Reader|Card|Certificate|Provider|Error' | Select-Object -First 40
-          Get-ChildItem Cert:\CurrentUser\My | Format-Table Subject, Thumbprint, HasPrivateKey
-
-      # build/sign-win.js signs every exe (app, installer, uninstaller, portable) when CERTUM_THUMBPRINT is set
+      # build/sign-win.js signs every exe (app, installer, uninstaller, portable) when the Certum secrets are set
       - run: npx electron-builder ${{ matrix.args }} --publish never
         env:
-          CERTUM_THUMBPRINT: ${{ steps.certum.outputs.cert-thumbprint }}
-          SIGNTOOL_PATH: ${{ steps.certum.outputs.signtool-path }}
+          CERTUM_EMAIL: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_USERNAME || '' }}
+          CERTUM_OTP: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_TOTP_SECRET || '' }}
 
       - name: Verify Windows signatures
         if: env.SIGN_WINDOWS == 'true'
         shell: pwsh
         run: |
-          $files = Get-ChildItem dist -Filter *.exe
-          foreach ($f in $files) { & "${{ steps.certum.outputs.signtool-path }}" verify /pa /tw $f.FullName; if ($LASTEXITCODE) { exit 1 } }
-          & "${{ steps.certum.outputs.signtool-path }}" verify /pa dist/win-unpacked/Sshelby.exe; if ($LASTEXITCODE) { exit 1 }
-
-      - name: Close the SimplySign session
-        if: always() && steps.certum.outcome != 'skipped'
-        uses: jay0lee/certum-cloud-code-sign/teardown@a3324503499c49090869856eeeecfe95fb613d87 # v1
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+            Where-Object FullName -match '\\x64\\' | Sort-Object FullName -Descending | Select-Object -First 1
+          $files = @(Get-ChildItem dist -Filter *.exe) + (Get-Item dist/win-unpacked/Sshelby.exe)
+          foreach ($f in $files) { & $signtool.FullName verify /pa /tw $f.FullName; if ($LASTEXITCODE) { exit 1 } }
 
       - uses: actions/upload-artifact@v4
         with:
