@@ -16,16 +16,12 @@ jobs:
         include:
           - os: macos-latest
             args: --mac --x64 --arm64
-          - os: windows-latest
-            args: --win
           - os: ubuntu-latest
             args: --linux
     runs-on: ${{ matrix.os }}
     env:
       # macOS builds are unsigned for now (no Developer ID certificate)
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      # Windows: sign with the Certum cloud certificate on release tags when the secrets exist
-      SIGN_WINDOWS: ${{ matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/v') && secrets.CERTUM_TOTP_SECRET != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,33 +33,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npx electron-vite build
-
-      # ssign signs through Certum's cloud API (no SimplySign Desktop). Pinned release, checksum verified.
-      - name: Install ssign
-        if: env.SIGN_WINDOWS == 'true'
-        shell: pwsh
-        run: |
-          $zip = "$env:RUNNER_TEMP\ssign.zip"
-          Invoke-WebRequest https://github.com/Le-Syl21/ssign/releases/download/v0.1.8/ssign-windows-x86_64.zip -OutFile $zip
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-          if ($hash -ne '89cbac647d19819a1a82645d2254ac51d2b34050835421294584385dadde1298') { throw "ssign checksum mismatch: $hash" }
-          Expand-Archive $zip -DestinationPath "$env:RUNNER_TEMP\ssign"
-          "SSIGN_PATH=$env:RUNNER_TEMP\ssign\ssign.exe" >> $env:GITHUB_ENV
-
-      # build/sign-win.js signs every exe (app, installer, uninstaller, portable) when the Certum secrets are set
       - run: npx electron-builder ${{ matrix.args }} --publish never
-        env:
-          CERTUM_EMAIL: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_USERNAME || '' }}
-          CERTUM_OTP: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_TOTP_SECRET || '' }}
-
-      - name: Verify Windows signatures
-        if: env.SIGN_WINDOWS == 'true'
-        shell: pwsh
-        run: |
-          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
-            Where-Object FullName -match '\\x64\\' | Sort-Object FullName -Descending | Select-Object -First 1
-          $files = @(Get-ChildItem dist -Filter *.exe) + (Get-Item dist/win-unpacked/Sshelby.exe)
-          foreach ($f in $files) { & $signtool.FullName verify /pa /tw $f.FullName; if ($LASTEXITCODE) { exit 1 } }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -71,13 +41,57 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.zip
-            dist/*.exe
             dist/*.AppImage
             dist/*.deb
           if-no-files-found: error
 
+  # Windows packages are built and signed on Linux: Wine for the installer, ssign for the signature
+  build-windows:
+    runs-on: ubuntu-latest
+    container: electronuserland/builder:24-wine
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Sign with the Certum cloud certificate on release tags when the secrets exist
+      SIGN_WINDOWS: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.CERTUM_TOTP_SECRET != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: node -v && npm ci
+      - run: npm run typecheck
+      - run: npx electron-vite build
+
+      # ssign signs through Certum's cloud API over HTTPS. Pinned release, checksum verified.
+      - name: Install ssign and osslsigncode
+        if: env.SIGN_WINDOWS == 'true'
+        run: |
+          curl -fsSL -o /tmp/ssign.tar.gz https://github.com/Le-Syl21/ssign/releases/download/v0.1.8/ssign-linux-x86_64.tar.gz
+          echo "fc38f083ea1f061a097a3a9c5dc1a056c9c7310a47e40f56a8976895ec5a928d  /tmp/ssign.tar.gz" | sha256sum -c -
+          tar xzf /tmp/ssign.tar.gz -C /usr/local/bin ssign
+          apt-get update -qq && apt-get install -y -qq osslsigncode >/dev/null
+
+      # build/sign-win.js signs every exe (app, installer, uninstaller, portable) when the Certum secrets are set
+      - run: npx electron-builder --win --publish never
+        env:
+          CERTUM_EMAIL: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_USERNAME || '' }}
+          CERTUM_OTP: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_TOTP_SECRET || '' }}
+
+      - name: Verify Windows signatures
+        if: env.SIGN_WINDOWS == 'true'
+        run: |
+          for f in dist/*.exe dist/win-unpacked/Sshelby.exe; do
+            echo "== $f"
+            osslsigncode verify -in "$f" -CAfile /etc/ssl/certs/ca-certificates.crt | tee /tmp/verify.txt
+            grep -q "Signature verification: ok" /tmp/verify.txt
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sshelby-Windows
+          path: dist/*.exe
+          if-no-files-found: error
+
   release:
-    needs: build
+    needs: [build, build-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:

@@ -1,6 +1,6 @@
 // Custom Windows signing hook for electron-builder: Certum "Code Signing in the Cloud" (SimplySign)
 // through ssign (https://github.com/Le-Syl21/ssign), which talks to Certum's cloud API over HTTPS
-// (no SimplySign Desktop, no virtual smart card). The release workflow provides ssign on PATH plus
+// (no SimplySign Desktop, no virtual smart card), from Linux in the release workflow, which provides ssign plus
 // CERTUM_EMAIL / CERTUM_OTP; without them (local builds, pull requests) files are left unsigned on purpose.
 const { execFileSync } = require('child_process')
 

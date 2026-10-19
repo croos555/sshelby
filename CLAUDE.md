@@ -117,8 +117,9 @@ build/           icon.svg (source) → icon.png used by electron-builder; splash
 
 ## CI
 
-- GitHub Actions (`.github/workflows/build.yml`): macOS, Windows and Linux packages on
-  GitHub-hosted runners for tags `v*` and manual runs; tags create a draft release.
+- GitHub Actions (`.github/workflows/build.yml`): macOS and Linux packages on their runners, Windows
+  packages built and signed on Linux (`build-windows` job in `electronuserland/builder:24-wine`), for
+  tags `v*` and manual runs; tags create a draft release (pre-release for `-rc` tags).
 - Windows signing: Certum cloud certificate through ssign (Certum cloud API, no SimplySign Desktop)
   on release tags (`build/sign-win.js`, secrets `CERTUM_USERNAME` / `CERTUM_TOTP_SECRET` in Base32,
   see docs/building.md). Third-party tools that receive secrets are pinned (release + SHA-256 or
