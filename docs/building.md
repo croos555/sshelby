@@ -22,12 +22,6 @@ Builds every package on GitHub-hosted runners (macOS, Windows, Linux), free for 
 It runs on tags `v*` and manually (*Actions → Build → Run workflow*). Packages are uploaded as
 workflow artifacts; on a tag, a **draft release** is created with all of them attached.
 
-### Jenkins (`Jenkinsfile`)
-
-Builds Linux and Windows packages inside `electronuserland/builder:24-wine` (the agent needs
-Docker). The optional macOS stage runs when the `BUILD_MAC` parameter is checked, on an agent
-labelled `macos`.
-
 ## Code signing
 
 Builds are unsigned by default (`CSC_IDENTITY_AUTO_DISCOVERY=false`).

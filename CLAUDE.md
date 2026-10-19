@@ -97,6 +97,4 @@ build/           icon.svg (source) → icon.png used by electron-builder; splash
 
 - GitHub Actions (`.github/workflows/build.yml`): macOS, Windows and Linux packages on
   GitHub-hosted runners for tags `v*` and manual runs; tags create a draft release.
-- Jenkins (`Jenkinsfile`): Linux/Windows in `electronuserland/builder:24-wine`, optional macOS stage
-  on an agent labelled `macos` (`BUILD_MAC`, gated with `beforeAgent`).
 - Builds are unsigned (`CSC_IDENTITY_AUTO_DISCOVERY=false`).
