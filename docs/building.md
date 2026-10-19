@@ -50,7 +50,12 @@ Repository secrets (*Settings → Secrets and variables → Actions*):
 | `CERTUM_TOTP_SECRET` | Base32 TOTP secret: the `secret=` parameter of the QR code shown when activating SimplySign (regenerate the QR code in the Certum account if it wasn't kept) |
 
 Without these secrets (local builds, pull requests from forks) the hook does nothing and the build
-stays unsigned. The TOTP secret allows signing in the maintainer's name: consider moving the secrets
+stays unsigned.
+
+Troubleshooting (repository *variables*, not secrets): `CERTUM_DEBUG=true` uploads screenshots of the
+SimplySign login as a workflow artifact; `CERTUM_TOTP_ALGORITHM` (default `SHA-256`) changes the
+one-time password algorithm. "No matching certificate was found" after a successful login usually
+means the certificate isn't issued/active yet in the Certum account. The TOTP secret allows signing in the maintainer's name: consider moving the secrets
 to a protected GitHub environment with required reviewers.
 
 ### macOS

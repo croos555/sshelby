@@ -47,6 +47,10 @@ jobs:
         with:
           username: ${{ secrets.CERTUM_USERNAME }}
           totp_secret: ${{ secrets.CERTUM_TOTP_SECRET }}
+          # Troubleshooting knobs as repository variables (Settings → Secrets and variables → Variables):
+          # CERTUM_DEBUG=true uploads screenshots of the login flow, CERTUM_TOTP_ALGORITHM overrides SHA-256
+          totp_algorithm: ${{ vars.CERTUM_TOTP_ALGORITHM || 'SHA-256' }}
+          debug: ${{ vars.CERTUM_DEBUG == 'true' }}
 
       # build/sign-win.js signs every exe (app, installer, uninstaller, portable) when CERTUM_THUMBPRINT is set
       - run: npx electron-builder ${{ matrix.args }} --publish never
