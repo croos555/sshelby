@@ -5,8 +5,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-10-19
+
 ### Added
-- Windows executables are signed with a Certum code signing certificate on release builds.
+- Windows executables (installer, portable, app, uninstaller) are code-signed with a Certum open
+  source certificate and timestamped, so Windows shows the publisher instead of "Unknown publisher".
 
 ### Changed
 - Export: saved passwords now follow the same opt-in as SSH keys and identities ("Include
