@@ -90,4 +90,6 @@ jobs:
         with:
           files: artifacts/*
           draft: true
+          # v1.2.3-rc.1 and similar are published as pre-releases
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
