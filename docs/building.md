@@ -16,6 +16,12 @@ add-ons are excluded so the app is pure JavaScript on every platform.
 
 ## Continuous integration
 
+### GitHub Actions (`.github/workflows/build.yml`)
+
+Builds every package on GitHub-hosted runners (macOS, Windows, Linux), free for public repositories.
+It runs on tags `v*` and manually (*Actions → Build → Run workflow*). Packages are uploaded as
+workflow artifacts; on a tag, a **draft release** is created with all of them attached.
+
 ### GitLab CI (`.gitlab-ci.yml`)
 
 A single `build` job runs on a **self-hosted macOS runner** and produces all packages
@@ -54,4 +60,4 @@ Store certificates and passwords as protected CI variables, never in the reposit
 
 1. Bump `version` in `package.json` and update `CHANGELOG.md`.
 2. Commit, then tag: `git tag v0.2.0 && git push --tags`.
-3. The tag pipeline builds every package; attach them to a GitLab release.
+3. The GitHub workflow builds every package and creates a draft release: review it and publish.

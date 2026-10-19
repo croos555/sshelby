@@ -39,8 +39,7 @@ encrypted by your operating system's keychain.
 
 ## Install
 
-Download the package for your system from the
-[releases / CI artifacts](https://gitlab.com/croos-perso/sshelby/-/pipelines):
+Download the package for your system from the [releases](https://github.com/croos555/sshelby/releases):
 
 | System | File |
 |---|---|
@@ -62,7 +61,7 @@ SmartScreen will ask for confirmation.
 ## Build from source
 
 ```bash
-git clone https://gitlab.com/croos-perso/sshelby.git
+git clone https://github.com/croos555/sshelby.git
 cd sshelby
 npm install
 npm run dev          # run in development mode
