@@ -38,6 +38,18 @@ jobs:
       - run: npm run typecheck
       - run: npx electron-vite build
 
+      # SimplySign exposes a virtual smart card; Windows copies its certificate into the user store only
+      # through these services, which are stopped on the Windows Server runner image
+      - name: Start smart card services
+        if: env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        run: |
+          foreach ($svc in 'SCardSvr', 'ScDeviceEnum', 'CertPropSvc') {
+            Set-Service -Name $svc -StartupType Manual -ErrorAction SilentlyContinue
+            Start-Service -Name $svc -ErrorAction SilentlyContinue
+          }
+          Get-Service SCardSvr, ScDeviceEnum, CertPropSvc | Format-Table Name, Status, StartType
+
       # Logs SimplySign Desktop in (TOTP) so the certificate is usable by signtool.
       # Pinned to a reviewed commit: it receives the signing credentials.
       - name: Set up Certum code signing
@@ -51,6 +63,15 @@ jobs:
           # CERTUM_DEBUG=true uploads screenshots of the login flow, CERTUM_TOTP_ALGORITHM overrides SHA-256
           totp_algorithm: ${{ vars.CERTUM_TOTP_ALGORITHM || 'SHA-256' }}
           debug: ${{ vars.CERTUM_DEBUG == 'true' }}
+
+      - name: Smart card diagnostics
+        if: failure() && steps.certum.outcome == 'failure'
+        shell: pwsh
+        run: |
+          Get-Service SCardSvr, ScDeviceEnum, CertPropSvc | Format-Table Name, Status, StartType
+          Get-Process SimplySign* -ErrorAction SilentlyContinue | Format-Table Name, Id
+          certutil -scinfo -silent 2>&1 | Select-String -Pattern 'Reader|Card|Certificate|Provider|Error' | Select-Object -First 40
+          Get-ChildItem Cert:\CurrentUser\My | Format-Table Subject, Thumbprint, HasPrivateKey
 
       # build/sign-win.js signs every exe (app, installer, uninstaller, portable) when CERTUM_THUMBPRINT is set
       - run: npx electron-builder ${{ matrix.args }} --publish never
