@@ -3,20 +3,17 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.0] — 2026-10-19
 
-### Added
-- Terminal theme per group, inherited by subgroups and hosts unless they set their own; *Group*
-  scope in the terminal theme panel.
-
-## [0.1.0] — first public release
+First public release.
 
 ### Added
 - Hosts and nested groups with grid, list and tree views, drag & drop, search and quick connect.
 - Custom icons and colors, OS detection, tags.
 - Per-host credentials, identities (password, SSH key, SSH agent), "use parent credentials" inheritance.
 - SSH agent support (ssh-agent, KeePassXC, Pageant, Windows OpenSSH agent) with single-key pinning.
-- Terminal tabs with 30 themes, find, snippets, keyword highlighting and a remote resources status bar.
+- Terminal tabs with 30 themes (per host, per group or global), find, snippets, keyword highlighting
+  and a remote resources status bar.
 - Dual-pane SFTP with transfers, remote file editor and "open in local app" with auto-upload.
 - Local, remote and dynamic (SOCKS5) port forwarding.
 - Keychain: generate/import SSH keys, install public keys on hosts.
