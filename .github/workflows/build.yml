@@ -45,10 +45,10 @@ jobs:
             dist/*.deb
           if-no-files-found: error
 
-  # Windows packages are built and signed on Linux: Wine for the installer, ssign for the signature
+  # Windows packages are built and signed on Linux (no Wine needed by electron-builder; ssign signs).
+  # Runs on the host: ssign's Linux binary needs the glibc of Ubuntu 24.04.
   build-windows:
     runs-on: ubuntu-latest
-    container: electronuserland/builder:24-wine
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       # Sign with the Certum cloud certificate on release tags when the secrets exist
@@ -56,7 +56,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: node -v && npm ci
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
       - run: npm run typecheck
       - run: npx electron-vite build
 
@@ -66,8 +71,8 @@ jobs:
         run: |
           curl -fsSL -o /tmp/ssign.tar.gz https://github.com/Le-Syl21/ssign/releases/download/v0.1.8/ssign-linux-x86_64.tar.gz
           echo "fc38f083ea1f061a097a3a9c5dc1a056c9c7310a47e40f56a8976895ec5a928d  /tmp/ssign.tar.gz" | sha256sum -c -
-          tar xzf /tmp/ssign.tar.gz -C /usr/local/bin ssign
-          apt-get update -qq && apt-get install -y -qq osslsigncode >/dev/null
+          sudo tar xzf /tmp/ssign.tar.gz -C /usr/local/bin ssign
+          sudo apt-get update -qq && sudo apt-get install -y -qq osslsigncode >/dev/null
 
       # build/sign-win.js signs every exe (app, installer, uninstaller, portable) when the Certum secrets are set
       - run: npx electron-builder --win --publish never
