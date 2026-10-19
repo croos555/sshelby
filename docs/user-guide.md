@@ -110,10 +110,12 @@ Rules can start automatically when Sshelby opens. Double-click a rule to start o
   Export sessions*) and import the `.mxtsessions` file (or `MobaXterm.ini`). SSH/SFTP sessions,
   folders and SSH gateways are imported; other session types and MobaXterm's encrypted passwords
   are not.
-- **Encrypted export**: choose groups and hosts, set a key (8+ characters) and save a `.sshelby`
-  file. Parent groups, jump hosts, snippets and known hosts are added automatically. SSH keys and
-  identities are only included if you tick the option. **Import** asks for the key, shows a
-  preview, then merges (existing items are updated, not duplicated).
+- **Export**: choose groups and hosts and save a `.sshelby` file. Parent groups, jump hosts,
+  snippets and known hosts are added automatically. **Credentials** (saved passwords, SSH keys,
+  identities) are only included if you tick the option, and then the file **must be encrypted**
+  with a key (8+ characters). Without credentials, encryption is optional (the file is readable
+  JSON). **Import** asks for the key only for encrypted files, shows a preview, then merges
+  (existing items are updated, not duplicated).
 
 ## Settings
 

@@ -2,7 +2,7 @@ import { dialog, ipcMain } from 'electron'
 import { randomUUID } from 'crypto'
 import { readFileSync, writeFileSync } from 'fs'
 import { notifyVaultChanged, store } from './store'
-import { decrypt, encrypt, parseEnvelope, Payload } from './envelope'
+import { encrypt, hasSecrets, isEncrypted, openExport, parseEnvelope, Payload, plain } from './envelope'
 
 // Encrypted, selective export of hosts/groups so they can be moved to another machine.
 // File = JSON envelope; payload is AES-256-GCM with a key derived from the passphrase by scrypt.
@@ -11,7 +11,7 @@ export interface ExportSelection {
   groupIds: string[]
   hostIds: string[]
   includeForwards: boolean
-  // SSH keys and identities are left out unless explicitly requested
+  // Passwords, SSH keys and identities are left out unless explicitly requested
   includeCredentials?: boolean
 }
 
@@ -70,10 +70,13 @@ function collect(sel: ExportSelection): Payload {
   const keyIds = new Set([...hosts, ...groups, ...identities].map((x) => x.keyId).filter(Boolean) as string[])
   const snippetIds = new Set(hosts.map((h) => h.startupSnippetId).filter(Boolean) as string[])
   const addrs = new Set(hosts.map((h) => h.address))
+  // Without credentials, drop the secrets and the references to keys/identities that aren't exported
+  const strip = <T extends { password?: string; keyId?: string | null; identityId?: string | null }>(x: T): T =>
+    sel.includeCredentials ? x : { ...x, password: undefined, keyId: null, identityId: null }
   return {
     exportedAt: Date.now(),
-    groups,
-    hosts,
+    groups: groups.map(strip),
+    hosts: hosts.map(strip),
     keys: sel.includeCredentials ? v.keys.filter((k) => keyIds.has(k.id)) : [],
     identities: sel.includeCredentials ? identities : [],
     snippets: v.snippets.filter((s) => snippetIds.has(s.id)),
@@ -200,6 +203,7 @@ function merge(p: Payload): ImportSummary {
 ipcMain.handle('transfer:preview', (_e, sel: ExportSelection) => {
   const p = collect(sel)
   return {
+    secrets: hasSecrets(p),
     groups: p.groups.length,
     hosts: p.hosts.length,
     keys: p.keys.length,
@@ -210,10 +214,12 @@ ipcMain.handle('transfer:preview', (_e, sel: ExportSelection) => {
   }
 })
 
-ipcMain.handle('transfer:export', async (_e, sel: ExportSelection, passphrase: string) => {
-  if (!passphrase || passphrase.length < 8) throw new Error('The key must be at least 8 characters')
+// passphrase null = unencrypted export, refused when the payload contains credentials
+ipcMain.handle('transfer:export', async (_e, sel: ExportSelection, passphrase: string | null) => {
   const payload = collect(sel)
   if (!payload.hosts.length && !payload.groups.length) throw new Error('Nothing selected')
+  if (passphrase === null && hasSecrets(payload)) throw new Error('Exports containing credentials must be encrypted')
+  if (passphrase !== null && passphrase.length < 8) throw new Error('The key must be at least 8 characters')
   const date = new Date().toISOString().slice(0, 10)
   const res = await dialog.showSaveDialog({
     title: 'Export hosts',
@@ -221,7 +227,8 @@ ipcMain.handle('transfer:export', async (_e, sel: ExportSelection, passphrase: s
     filters: [{ name: 'Sshelby export', extensions: ['sshelby'] }]
   })
   if (res.canceled || !res.filePath) return false
-  writeFileSync(res.filePath, JSON.stringify(await encrypt(payload, passphrase)), { mode: 0o600 })
+  const file = passphrase === null ? plain(payload) : await encrypt(payload, passphrase)
+  writeFileSync(res.filePath, JSON.stringify(file, null, passphrase === null ? 2 : 0), { mode: 0o600 })
   return true
 })
 
@@ -232,13 +239,13 @@ ipcMain.handle('transfer:pickImport', async () => {
     properties: ['openFile']
   })
   if (res.canceled || !res.filePaths[0]) return null
-  parseEnvelope(readFileSync(res.filePaths[0], 'utf8'))
-  return res.filePaths[0]
+  const f = parseEnvelope(readFileSync(res.filePaths[0], 'utf8'))
+  return { path: res.filePaths[0], encrypted: isEncrypted(f) }
 })
 
 // Decrypt only, so the UI can show what will be imported before merging
-ipcMain.handle('transfer:inspect', async (_e, path: string, passphrase: string) => {
-  const p = await decrypt(parseEnvelope(readFileSync(path, 'utf8')), passphrase)
+ipcMain.handle('transfer:inspect', async (_e, path: string, passphrase?: string) => {
+  const p = await openExport(parseEnvelope(readFileSync(path, 'utf8')), passphrase)
   return {
     exportedAt: p.exportedAt,
     groups: (p.groups || []).map((g) => g.name),
@@ -251,8 +258,8 @@ ipcMain.handle('transfer:inspect', async (_e, path: string, passphrase: string) 
   }
 })
 
-ipcMain.handle('transfer:import', async (_e, path: string, passphrase: string) => {
-  const p = await decrypt(parseEnvelope(readFileSync(path, 'utf8')), passphrase)
+ipcMain.handle('transfer:import', async (_e, path: string, passphrase?: string) => {
+  const p = await openExport(parseEnvelope(readFileSync(path, 'utf8')), passphrase)
   const summary = merge(p)
   notifyVaultChanged()
   return summary

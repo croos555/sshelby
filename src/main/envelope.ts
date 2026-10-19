@@ -57,17 +57,53 @@ export async function encrypt(payload: Payload, passphrase: string): Promise<Env
   }
 }
 
-export function parseEnvelope(raw: string): Envelope {
-  let env: Envelope
+// Unencrypted export: only allowed when the payload holds no secrets
+export interface PlainEnvelope {
+  format: typeof FORMAT
+  version: 1
+  encrypted: false
+  payload: Payload
+}
+
+export type ExportFile = Envelope | PlainEnvelope
+
+export function isEncrypted(f: ExportFile): f is Envelope {
+  return (f as PlainEnvelope).encrypted !== false
+}
+
+export function plain(payload: Payload): PlainEnvelope {
+  return { format: FORMAT, version: 1, encrypted: false, payload }
+}
+
+export function parseEnvelope(raw: string): ExportFile {
+  let env: any
   try {
     env = JSON.parse(raw)
   } catch {
     throw new Error('Not a Sshelby export file')
   }
-  if (env?.format !== FORMAT || env.version !== 1 || env.kdf?.name !== 'scrypt') {
-    throw new Error('Not a Sshelby export file (or an unsupported version)')
-  }
+  const ok =
+    env?.format === FORMAT &&
+    env.version === 1 &&
+    (env.encrypted === false ? typeof env.payload === 'object' && env.payload !== null : env.kdf?.name === 'scrypt')
+  if (!ok) throw new Error('Not a Sshelby export file (or an unsupported version)')
   return env
+}
+
+export async function openExport(f: ExportFile, passphrase?: string): Promise<Payload> {
+  if (!isEncrypted(f)) return f.payload
+  if (!passphrase) throw new Error('This file is encrypted: enter its key')
+  return decrypt(f, passphrase)
+}
+
+// Anything that could log someone in: decides whether the export must be encrypted
+export function hasSecrets(p: Payload): boolean {
+  return (
+    (p.keys?.length || 0) > 0 ||
+    (p.identities?.length || 0) > 0 ||
+    (p.hosts || []).some((h) => h.password) ||
+    (p.groups || []).some((g) => g.password)
+  )
 }
 
 export async function decrypt(env: Envelope, passphrase: string): Promise<Payload> {

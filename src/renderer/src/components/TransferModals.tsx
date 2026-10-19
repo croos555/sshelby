@@ -46,9 +46,9 @@ const LABELS: Record<string, string> = {
   knownHosts: 'known hosts'
 }
 
-function summarize(counts: Record<string, number>) {
+function summarize(counts: Record<string, number | boolean | undefined>) {
   return Object.entries(counts)
-    .filter(([, n]) => n > 0)
+    .filter(([, n]) => typeof n === 'number' && n > 0)
     .map(([k, n]) => `${n} ${LABELS[k] || k}`)
     .join(' · ')
 }
@@ -63,9 +63,10 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
   const [includeForwards, setIncludeForwards] = useState(true)
   // Private keys and identities stay on this machine unless explicitly included
   const [includeCredentials, setIncludeCredentials] = useState(false)
+  const [encryptWanted, setEncryptWanted] = useState(true)
   const [key, setKey] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [preview, setPreview] = useState<Record<string, number>>({})
+  const [preview, setPreview] = useState<Record<string, number> & { secrets?: boolean }>({})
   const [busy, setBusy] = useState(false)
 
   const selection = useMemo(
@@ -160,14 +161,23 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
   )
 
   const nothing = !preview.hosts && !preview.groups
-  const keyError =
-    key && key.length < 8 ? 'At least 8 characters' : confirm && key !== confirm ? 'Keys do not match' : ''
+  // Credentials in the file make encryption mandatory; otherwise it's the user's choice
+  const mustEncrypt = !!preview.secrets
+  const encrypt = mustEncrypt || encryptWanted
+  const keyError = !encrypt
+    ? ''
+    : key && key.length < 8
+      ? 'At least 8 characters'
+      : confirm && key !== confirm
+        ? 'Keys do not match'
+        : ''
+  const ready = !nothing && !keyError && (!encrypt || (key && key === confirm))
 
   const doExport = async () => {
-    if (nothing || keyError || !key || key !== confirm) return
+    if (!ready) return
     setBusy(true)
     try {
-      if (await window.api.transfer.exportFile(selection, key)) {
+      if (await window.api.transfer.exportFile(selection, encrypt ? key : null)) {
         notify('Export saved')
         onClose()
       }
@@ -184,7 +194,7 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
         <h3>
           <Upload size={18} color="var(--accent)" /> Export hosts
         </h3>
-        <p>Choose what to export. The file is encrypted with the key you set below; you’ll need it to import on another machine.</p>
+        <p>Choose what to export. Files containing credentials are always encrypted with a key you’ll need to import them.</p>
         <div className="row">
           <strong className="grow">Hosts & groups</strong>
           <button className="link" onClick={selectAll}>
@@ -200,24 +210,40 @@ export function ExportModal({ onClose }: { onClose: () => void }) {
         </label>
         <label className="row" style={{ gap: 8 }}>
           <input type="checkbox" checked={includeCredentials} onChange={(e) => setIncludeCredentials(e.target.checked)} />
-          <span>Include SSH keys and identities used by these hosts (private keys!)</span>
+          <span>Include credentials: saved passwords, SSH keys and identities (requires encryption)</span>
         </label>
         <div className="hint">
           {nothing ? 'Nothing selected.' : `Will export: ${summarize(preview)}.`} Parent groups, jump hosts and startup snippets used
-          by the selection are added automatically, with host passwords.{' '}
+          by the selection are added automatically.{' '}
           {includeCredentials
-            ? 'SSH keys and identities are included too.'
-            : 'SSH keys and identities are not exported: hosts that use them will need them again on the other machine.'}
+            ? 'Passwords, SSH keys and identities are included.'
+            : 'No credentials are exported: hosts will ask for them (or need their key/identity again) on the other machine.'}
         </div>
-        <KeyField value={key} onChange={setKey} placeholder="Encryption key (min. 8 characters)" />
-        <KeyField value={confirm} onChange={setConfirm} placeholder="Confirm key" onEnter={doExport} />
-        {keyError && <div style={{ color: 'var(--danger)', fontSize: 12 }}>{keyError}</div>}
+        <label className="row" style={{ gap: 8, opacity: mustEncrypt ? 0.7 : 1 }}>
+          <input
+            type="checkbox"
+            checked={encrypt}
+            disabled={mustEncrypt}
+            onChange={(e) => setEncryptWanted(e.target.checked)}
+          />
+          <span>
+            Encrypt the file
+            {mustEncrypt ? ' (required: it contains credentials)' : ' (optional: no credentials inside)'}
+          </span>
+        </label>
+        {encrypt && (
+          <>
+            <KeyField value={key} onChange={setKey} placeholder="Encryption key (min. 8 characters)" />
+            <KeyField value={confirm} onChange={setConfirm} placeholder="Confirm key" onEnter={doExport} />
+            {keyError && <div style={{ color: 'var(--danger)', fontSize: 12 }}>{keyError}</div>}
+          </>
+        )}
         <div className="actions">
           <button className="btn soft" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" disabled={busy || nothing || !!keyError || !key || key !== confirm} onClick={doExport}>
-            {busy ? 'Encrypting…' : 'Export…'}
+          <button className="btn primary" disabled={busy || !ready} onClick={doExport}>
+            {busy ? (encrypt ? 'Encrypting…' : 'Saving…') : 'Export…'}
           </button>
         </div>
       </div>
@@ -232,6 +258,7 @@ type Preview = Awaited<ReturnType<typeof window.api.transfer.inspect>>
 export function ImportModal({ onClose }: { onClose: () => void }) {
   const { notify, load } = useStore()
   const [path, setPath] = useState<string | null>(null)
+  const [encrypted, setEncrypted] = useState(true)
   const [key, setKey] = useState('')
   const [preview, setPreview] = useState<Preview | null>(null)
   const [error, setError] = useState('')
@@ -242,8 +269,11 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
     try {
       const p = await window.api.transfer.pickImport()
       if (p) {
-        setPath(p)
+        setPath(p.path)
+        setEncrypted(p.encrypted)
         setPreview(null)
+        // Unencrypted files need no key: show their content right away
+        if (!p.encrypted) setPreview(await window.api.transfer.inspect(p.path))
       }
     } catch (err) {
       setError(errMsg(err))
@@ -272,7 +302,7 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
     if (!path) return
     setBusy(true)
     try {
-      const res = await window.api.transfer.importFile(path, key)
+      const res = await window.api.transfer.importFile(path, encrypted ? key : undefined)
       await load()
       notify(`Imported: ${res.created} new, ${res.updated} updated`)
       onClose()
@@ -298,14 +328,16 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
             Choose file…
           </button>
         </div>
-        {path && !preview && (
+        {path && encrypted && !preview && (
           <>
             <KeyField value={key} onChange={setKey} placeholder="Encryption key" autoFocus onEnter={unlock} />
           </>
         )}
         {preview && (
           <div className="fingerprint" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div className="hint">Exported {new Date(preview.exportedAt).toLocaleString()}</div>
+            <div className="hint">
+              Exported {new Date(preview.exportedAt).toLocaleString()} · {encrypted ? 'encrypted' : 'not encrypted, no credentials'}
+            </div>
             <div>
               <strong>{preview.hosts.length}</strong> hosts
               {preview.groups.length ? (

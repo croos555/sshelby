@@ -131,12 +131,15 @@ const api = {
   },
 
   transfer: {
-    preview: (sel: ExportSelection): Promise<Record<string, number>> => ipcRenderer.invoke('transfer:preview', sel),
-    exportFile: (sel: ExportSelection, passphrase: string): Promise<boolean> =>
+    preview: (sel: ExportSelection): Promise<Record<string, number> & { secrets: boolean }> =>
+      ipcRenderer.invoke('transfer:preview', sel),
+    // passphrase null = unencrypted (refused by main when credentials are included)
+    exportFile: (sel: ExportSelection, passphrase: string | null): Promise<boolean> =>
       ipcRenderer.invoke('transfer:export', sel, passphrase),
-    pickImport: (): Promise<string | null> => ipcRenderer.invoke('transfer:pickImport'),
-    inspect: (path: string, passphrase: string): Promise<ImportPreview> => ipcRenderer.invoke('transfer:inspect', path, passphrase),
-    importFile: (path: string, passphrase: string): Promise<ImportSummary> =>
+    pickImport: (): Promise<{ path: string; encrypted: boolean } | null> => ipcRenderer.invoke('transfer:pickImport'),
+    inspect: (path: string, passphrase?: string): Promise<ImportPreview> =>
+      ipcRenderer.invoke('transfer:inspect', path, passphrase),
+    importFile: (path: string, passphrase?: string): Promise<ImportSummary> =>
       ipcRenderer.invoke('transfer:import', path, passphrase)
   },
 

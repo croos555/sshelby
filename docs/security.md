@@ -21,14 +21,16 @@
   Pageant). An identity can be restricted to a single agent key.
 - Agent forwarding is off unless enabled per host.
 
-## Encrypted export
+## Export files
 
 - Format: JSON envelope, payload encrypted with **AES-256-GCM**, key derived from your passphrase
   with **scrypt** (N=2^17, r=8, p=1, 16-byte random salt, 12-byte random IV). The header is bound to
   the ciphertext as additional authenticated data.
 - A wrong key or a modified file is rejected. Choose a strong passphrase: anyone holding the file can
   attempt offline guesses.
-- SSH keys and identities are excluded by default. Host passwords are included.
+- Credentials (passwords, SSH keys, identities) are excluded by default. A file containing any of
+  them is always encrypted: the main process refuses to write it in clear. Without credentials the
+  export may be saved unencrypted (plain JSON with the hosts, groups and settings selected).
 
 ## Renderer isolation
 

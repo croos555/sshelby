@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 ### Added
 - Windows executables are signed with a Certum code signing certificate on release builds.
 
+### Changed
+- Export: saved passwords now follow the same opt-in as SSH keys and identities ("Include
+  credentials"). Encryption is required only when credentials are included; otherwise it is
+  optional and the file can be plain JSON. Import asks for a key only for encrypted files.
+
 ## [0.1.0] — 2026-10-19
 
 First public release.
