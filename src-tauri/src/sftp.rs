@@ -11,7 +11,7 @@ use russh_sftp::protocol::{FileAttributes, OpenFlags};
 use serde_json::{json, Value};
 use tauri_plugin_opener::OpenerExt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::task::JoinHandle;
+use tauri::async_runtime::JoinHandle;
 
 use crate::ssh::{connect_host, no_log, Connection};
 use crate::util::{app, emit, uuid, Result};
@@ -77,7 +77,7 @@ pub async fn sftp_open(sftp_id: String, host_id: String) -> Result<String> {
         sftp_id.clone(),
         Sftp { refs: 1, conn: conn.clone(), sftp, temp_dirs: vec![], watchers: vec![] },
     );
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         conn.closed().await;
         let s = SFTPS.lock().unwrap().remove(&sftp_id);
         if let Some(mut s) = s {
@@ -164,7 +164,7 @@ pub async fn sftp_open_external(sftp_id: String, path: String) -> Result<String>
     let watched = local.clone();
     let remote = path.clone();
     // Polling keeps this portable; editors often write in several steps, so wait for the file to settle
-    let watcher = tokio::spawn(async move {
+    let watcher = tauri::async_runtime::spawn(async move {
         let mut last = data;
         loop {
             tokio::time::sleep(Duration::from_millis(800)).await;
@@ -413,7 +413,7 @@ pub fn sftp_upload(sftp_id: String, local_paths: Vec<String>, remote_dir: String
     let sftp = get(&sftp_id)?;
     let mut p = Progress::new(&sftp_id, "upload", &local_paths);
     let id = p.id();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         for lp in &local_paths {
             p.add_total(local_size(Path::new(lp)));
         }
@@ -434,7 +434,7 @@ pub fn sftp_download(sftp_id: String, remote_paths: Vec<String>, local_dir: Stri
     let sftp = get(&sftp_id)?;
     let mut p = Progress::new(&sftp_id, "download", &remote_paths);
     let id = p.id();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         for rp in &remote_paths {
             let n = remote_size(&sftp, rp.clone()).await;
             p.add_total(n);

@@ -60,6 +60,9 @@ fn decrypt(env: &Value, passphrase: &str) -> anyhow::Result<Value> {
     let salt = B64.decode(kdf["salt"].as_str().unwrap_or_default())?;
     let key = derive_key(passphrase, &salt, n.trailing_zeros() as u8, r, p)?;
     let (iv, tag, mut data) = (field("iv")?, field("tag")?, field("data")?);
+    if iv.len() != 12 || tag.len() != 16 {
+        bail!("Wrong key, or the file is corrupted");
+    }
     data.extend(tag);
     let cipher = Aes256Gcm::new_from_slice(&key)?;
     let plain = cipher

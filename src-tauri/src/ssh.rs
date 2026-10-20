@@ -216,7 +216,7 @@ impl Connection {
     // Closes the whole jump chain
     pub fn close(&self) {
         let h = self.handle.clone();
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             let _ = h.disconnect(Disconnect::ByApplication, "", "en").await;
         });
         if let Some(j) = &self.jump {
@@ -334,6 +334,15 @@ async fn authenticate(handle: &mut Handle<Client>, r: &Resolved, log: &Log) -> a
         }
     };
 
+    // Diagnostics on stderr: which methods are tried and why they fail (no secrets)
+    let trace = |m: &str| eprintln!("[auth {}@{}:{}] {m}", username, r.address, r.port);
+    trace(&format!(
+        "key={} agent={:?} password={} via_identity={}",
+        r.key_id.is_some(),
+        r.agent,
+        r.password.is_some(),
+        r.via_identity
+    ));
     let mut remaining: Option<MethodSet> = None;
     let mut ok = false;
     let track = |res: AuthResult, remaining: &mut Option<MethodSet>| -> bool {
@@ -358,25 +367,41 @@ async fn authenticate(handle: &mut Handle<Client>, r: &Resolved, log: &Log) -> a
             }
         }
         match parsed {
-            Err(e) => log(&format!("Key \"{key_label}\" could not be loaded: {e}")),
+            Err(e) => {
+                trace(&format!("key \"{key_label}\" not loaded ({} bytes): {e}", pem.len()));
+                log(&format!("Key \"{key_label}\" could not be loaded: {e}"))
+            }
             Ok(pk) => {
                 let hash = if pk.algorithm().is_rsa() { handle.best_supported_rsa_hash().await?.flatten() } else { None };
                 let res = handle.authenticate_publickey(&username, PrivateKeyWithHashAlg::new(Arc::new(pk), hash)).await?;
                 ok = track(res, &mut remaining);
+                trace(&format!("key \"{key_label}\" ok={ok} remaining={remaining:?}"));
             }
         }
+    } else if r.key_id.is_some() {
+        trace("configured key not found in the vault");
     }
 
     // 2. Agent: only it for agent identities, otherwise a fallback when no key is configured
     if !ok && (r.agent.is_some() || key.is_none()) && allowed(&remaining, MethodKind::PublicKey) {
         match agent::agent_path() {
             None if r.agent.is_some() => log("No SSH agent available (check Settings → SSH agent)"),
-            None => {}
+            None => trace("no agent socket (SSH_AUTH_SOCK unset)"),
             Some(path) => match agent::connect(&path).await {
-                Err(e) => log(&format!("SSH agent unavailable: {e}")),
+                Err(e) => {
+                    trace(&format!("agent {path}: {e}"));
+                    log(&format!("SSH agent unavailable: {e}"))
+                }
                 Ok(mut ag) => {
                     let wanted = r.agent.clone().flatten();
-                    let ids = ag.request_identities().await.unwrap_or_default();
+                    let ids = match ag.request_identities().await {
+                        Ok(ids) => ids,
+                        Err(e) => {
+                            trace(&format!("agent {path}: cannot list identities: {e}"));
+                            vec![]
+                        }
+                    };
+                    trace(&format!("agent {path}: {} identities, wanted={wanted:?}", ids.len()));
                     for id in &ids {
                         let Some(pk) = agent::identity_key(id) else { continue };
                         // Only offer the selected key: many keys would burn through MaxAuthTries
@@ -384,7 +409,9 @@ async fn authenticate(handle: &mut Handle<Client>, r: &Resolved, log: &Log) -> a
                             continue;
                         }
                         let hash = if pk.algorithm().is_rsa() { handle.best_supported_rsa_hash().await?.flatten() } else { None };
-                        match handle.authenticate_publickey_with(&username, pk.clone(), hash, &mut ag).await {
+                        let res = handle.authenticate_publickey_with(&username, pk.clone(), hash, &mut ag).await;
+                        trace(&format!("agent key {} ({}): {:?}", agent::fingerprint(pk), pk.algorithm().as_str(), res.as_ref().map(|r| matches!(r, AuthResult::Success))));
+                        match res {
                             Ok(res) => {
                                 if track(res, &mut remaining) {
                                     ok = true;
@@ -399,6 +426,7 @@ async fn authenticate(handle: &mut Handle<Client>, r: &Resolved, log: &Log) -> a
         }
     }
 
+    trace(&format!("after keys/agent: ok={ok} remaining={remaining:?}"));
     // 3. Saved password
     if !ok && allowed(&remaining, MethodKind::Password) {
         if let Some(pw) = &r.password {

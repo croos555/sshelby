@@ -8,7 +8,7 @@ use russh::client::Msg;
 use russh::{ChannelMsg, ChannelWriteHalf};
 use serde_json::json;
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
+use tauri::async_runtime::JoinHandle;
 
 use crate::ssh::{connect_host, Connection};
 use crate::stats::{parse_stats, CpuSample, STATS_COMMAND};
@@ -111,7 +111,7 @@ async fn open(session_id: &str, host_id: &str, log: crate::ssh::Log) -> anyhow::
     status(session_id, "connected", None);
 
     // Writer: keystrokes and resizes from the UI
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let write: ChannelWriteHalf<Msg> = write;
         while let Some(msg) = rx.recv().await {
             match msg {
@@ -134,7 +134,7 @@ async fn open(session_id: &str, host_id: &str, log: crate::ssh::Log) -> anyhow::
     // Reader: shell output to the terminal
     let sid = session_id.to_string();
     let reader_conn = conn.clone();
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let (mut out, mut err) = (Utf8Stream::default(), Utf8Stream::default());
         while let Some(msg) = read.wait().await {
             match msg {
@@ -162,7 +162,7 @@ async fn open(session_id: &str, host_id: &str, log: crate::ssh::Log) -> anyhow::
         if host["os"].as_str().is_none_or(str::is_empty) {
             let c = conn.clone();
             let hid = host_id.to_string();
-            tokio::spawn(async move { detect_os(c, hid).await });
+            tauri::async_runtime::spawn(async move { detect_os(c, hid).await });
         }
         let snippet = host["startupSnippetId"].as_str().and_then(|id| store().find("snippets", id));
         if let Some(sn) = snippet {
@@ -237,7 +237,7 @@ pub fn ssh_stats(session_id: String, on: bool) {
         t.abort();
     }
     let Some(conn) = s.conn.clone().filter(|_| on) else { return };
-    s.stats = Some(tokio::spawn(async move {
+    s.stats = Some(tauri::async_runtime::spawn(async move {
         let mut prev: Option<CpuSample> = None;
         let mut first = true;
         loop {

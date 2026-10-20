@@ -1,6 +1,6 @@
 [package]
 name = "sshelby"
-version = "0.1.2"
+version = "0.3.0"
 description = "Local-first SSH client"
 authors = ["Christophe Roos"]
 license = "MIT"
@@ -44,5 +44,4 @@ regex = "1"
 codegen-units = 1
 lto = true
 opt-level = "s"
-panic = "abort"
 strip = true

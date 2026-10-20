@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
+use tauri::async_runtime::JoinHandle;
 
 use crate::ssh::{connect_host, no_log, Connection};
 use crate::store::store;
@@ -59,7 +59,7 @@ fn connections_changed(id: &str, counter: &AtomicUsize) {
 
 // Pipe a local socket and an SSH channel until either side closes
 fn pipe(id: String, mut sock: TcpStream, ch: Channel<Msg>, counter: Arc<AtomicUsize>) {
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         counter.fetch_add(1, Ordering::Relaxed);
         connections_changed(&id, &counter);
         let mut stream = ch.into_stream();
@@ -162,7 +162,7 @@ async fn run(id: &str, f: &Value) -> anyhow::Result<()> {
         *conn.forwarded.lock().unwrap() = Some(tx);
         conn.handle.tcpip_forward(bind_addr, bind_port as u32).await?;
         let fid = id.to_string();
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             while let Some(ch) = rx.recv().await {
                 if let Ok(sock) = TcpStream::connect((dest_addr.as_str(), dest_port)).await {
                     pipe(fid.clone(), sock, ch, counter.clone());
@@ -174,10 +174,10 @@ async fn run(id: &str, f: &Value) -> anyhow::Result<()> {
         let dynamic = kind == "dynamic";
         let c = conn.clone();
         let fid = id.to_string();
-        tokio::spawn(async move {
+        tauri::async_runtime::spawn(async move {
             while let Ok((mut sock, peer)) = listener.accept().await {
                 let (c, fid, counter, dest_addr) = (c.clone(), fid.clone(), counter.clone(), dest_addr.clone());
-                tokio::spawn(async move {
+                tauri::async_runtime::spawn(async move {
                     let dest = if dynamic { socks_handshake(&mut sock).await } else { Ok((dest_addr, dest_port)) };
                     let Ok((host, port)) = dest else { return };
                     match c.handle.channel_open_direct_tcpip(host, port as u32, peer.ip().to_string(), peer.port() as u32).await {
@@ -199,7 +199,7 @@ async fn run(id: &str, f: &Value) -> anyhow::Result<()> {
 
     // The forward dies with its SSH connection
     let fid = id.to_string();
-    let watcher = tokio::spawn(async move {
+    let watcher = tauri::async_runtime::spawn(async move {
         conn.closed().await;
         if RUNNING.lock().unwrap().contains_key(&fid) {
             stop(&fid);

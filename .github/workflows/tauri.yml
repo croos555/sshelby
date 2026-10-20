@@ -1,0 +1,88 @@
+name: Tauri test build
+
+# Experimental Tauri build (branch "tauri"): portable Windows exe, signed with the Certum cloud
+# certificate when the secrets exist. Artifacts only, no release.
+on:
+  push:
+    branches: [tauri]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+      - run: npm run typecheck
+
+      # --no-bundle: just the executable (frontend embedded); it uses the system WebView2
+      - run: npx tauri build --no-bundle
+
+      - name: Rename portable executable
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          mkdir -p dist-tauri
+          cp src-tauri/target/release/sshelby.exe "dist-tauri/Sshelby-${version}-portable.exe"
+          ls -l dist-tauri
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sshelby-tauri-windows-unsigned
+          path: dist-tauri/*.exe
+          if-no-files-found: error
+
+  # Signing runs on Linux with the same pinned ssign release as the Electron build
+  sign-windows:
+    needs: windows
+    runs-on: ubuntu-latest
+    env:
+      SIGN_WINDOWS: ${{ secrets.CERTUM_TOTP_SECRET != '' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sshelby-tauri-windows-unsigned
+          path: dist-tauri
+
+      # ssign signs through Certum's cloud API over HTTPS. Pinned release, checksum verified.
+      - name: Install ssign and osslsigncode
+        if: env.SIGN_WINDOWS == 'true'
+        run: |
+          curl -fsSL -o /tmp/ssign.tar.gz https://github.com/Le-Syl21/ssign/releases/download/v0.1.8/ssign-linux-x86_64.tar.gz
+          echo "fc38f083ea1f061a097a3a9c5dc1a056c9c7310a47e40f56a8976895ec5a928d  /tmp/ssign.tar.gz" | sha256sum -c -
+          sudo tar xzf /tmp/ssign.tar.gz -C /usr/local/bin ssign
+          sudo apt-get update -qq && sudo apt-get install -y -qq osslsigncode >/dev/null
+
+      - name: Sign and verify
+        if: env.SIGN_WINDOWS == 'true'
+        env:
+          CERTUM_EMAIL: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP: ${{ secrets.CERTUM_TOTP_SECRET }}
+        run: |
+          for f in dist-tauri/*.exe; do
+            # The cloud API is occasionally slow to answer: retry like build/sign-win.js
+            for attempt in 1 2 3; do ssign "$f" && break; sleep $((attempt * 10)); done
+            osslsigncode verify -in "$f" -CAfile /etc/ssl/certs/ca-certificates.crt | tee /tmp/verify.txt
+            grep -q "Signature verification: ok" /tmp/verify.txt
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sshelby-tauri-windows
+          path: dist-tauri/*.exe
+          if-no-files-found: error
