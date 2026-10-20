@@ -43,12 +43,13 @@ Download the package for your system from the [releases](https://github.com/croo
 
 | System | File |
 |---|---|
-| macOS (Apple Silicon / Intel) | `Sshelby-<version>-arm64.dmg` / `-x64.dmg` |
-| Windows | `Sshelby Setup <version>.exe` (installer) or `Sshelby-<version>-portable.exe` |
-| Linux | `Sshelby-<version>.AppImage`, `sshelby_<version>_amd64.deb` or `sshelby-<version>.x86_64.rpm` |
+| macOS (Apple Silicon / Intel) | `Sshelby_<version>_aarch64.dmg` / `Sshelby_<version>_x64.dmg` |
+| Windows (x64 / ARM64) | `Sshelby_<version>_x64-setup.exe` (installer) or `Sshelby_<version>_x64-portable.exe` |
+| Linux (amd64 / arm64) | `.AppImage`, `.deb` or `.rpm` |
 
-Windows releases are code-signed (Certum); SmartScreen may still warn until the app builds up
-reputation. macOS releases are signed with a Developer ID and notarized by Apple.
+Packages weigh a few MB: Sshelby uses the system webview (WebView2 on Windows 10 and 11). Windows
+releases are code-signed (Certum); SmartScreen may still warn until the app builds up reputation.
+macOS releases are signed with a Developer ID and notarized by Apple.
 
 ## Documentation
 

@@ -20,8 +20,7 @@ standards expected of a well-run open source repository:
 - **Versioning**: [Semantic Versioning](https://semver.org/); the version in `package.json`,
   `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, `CHANGELOG.md`
   ([Keep a Changelog](https://keepachangelog.com/), user-visible changes under *Unreleased*) and the
-  `vX.Y.Z` tag must agree. Releases are cut by pushing an annotated tag; CI builds the packages
-  (drafting the GitHub release comes back with the macOS/Linux packaging).
+  `vX.Y.Z` tag must agree. Releases are cut by pushing an annotated tag; CI drafts the GitHub release.
 - **Quality gates**: `npm run typecheck`, `npm run web:build` and `cargo test` (in `src-tauri`) must
   pass before pushing; CI checks every push and pull request. Keep `npm audit --omit=dev` clean and
   dependencies (npm and crates) MIT-compatible.
@@ -128,10 +127,18 @@ build/            icon.svg (source) → icon.png; src-tauri/icons generated with
 ## CI
 
 - `.github/workflows/ci.yml` (main, pull requests): typecheck, UI build, `npm audit --omit=dev`.
-- `.github/workflows/build.yml` (tags `v*`, manual): Windows runner builds and tests the
-  Rust backend and produces the portable exe; a Linux job signs it with the Certum cloud certificate
-  through ssign (pinned release, SHA-256 verified; secrets `CERTUM_USERNAME` / `CERTUM_TOTP_SECRET`
-  in Base32) and checks it with osslsigncode. Artifacts only, no release yet.
+- `.github/workflows/build.yml` (tags `v*`, manual): macOS arm64 + x64 dmg (signed + notarized on
+  tags), Linux amd64 + arm64 AppImage/deb/rpm (Ubuntu 22.04 for glibc compatibility; also runs the
+  typecheck and `cargo test`), Windows x64 + arm64 NSIS installer + portable exe; tags draft a release
+  (pre-release for `-rc`).
+- Windows signing: ssign (Certum cloud API, pinned Windows release + SHA-256) through
+  `bundle.windows.signCommand` → `build/sign-win.sh`, passed with `--config` in CI only, so the app
+  exe is signed before NSIS packs it. Secrets `CERTUM_USERNAME` / `CERTUM_TOTP_SECRET` (Base32).
+  SimplySign Desktop on GitHub's Windows runner does not work (its virtual card reader never registers).
+- macOS signing: Developer ID certificate imported into a dedicated keychain (tool-created temporary
+  keychains fail to unlock on hosted runners), identity passed as `APPLE_SIGNING_IDENTITY`;
+  notarization with the App Store Connect API key (`APPLE_API_KEY`, `APPLE_API_ISSUER`,
+  `APPLE_API_KEY_PATH`). Secrets `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_BASE64`,
+  `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`. The verify step requires spctl "source=Notarized Developer ID"
+  and a stapled ticket.
 - Third-party tools that receive secrets are pinned (release + SHA-256 or commit SHA) after review.
-- macOS signing/notarization and Linux packages are not wired into the Tauri CI yet (the Electron
-  setup on `main` documents the secrets: `MAC_CSC_LINK`, `APPLE_API_KEY_BASE64`…).

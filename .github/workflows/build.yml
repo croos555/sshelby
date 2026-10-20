@@ -1,8 +1,7 @@
 name: Build
 
-# Portable Windows exe, tested and signed with the Certum cloud certificate when the secrets exist.
-# Runs on version tags and manually; packages are uploaded as workflow artifacts.
-# macOS (signing + notarization) and Linux packages are not wired in yet, see docs/building.md.
+# Packages for every platform: macOS (signed + notarized), Windows (signed with the Certum cloud
+# certificate) and Linux. Runs on version tags and manually; tags also draft a GitHub release.
 on:
   push:
     tags: ['v*']
@@ -12,80 +11,224 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64-apple-darwin, x86_64-apple-darwin]
+    runs-on: macos-latest
+    env:
+      SIGN_MAC: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.MAC_CSC_LINK != '' && secrets.APPLE_API_KEY_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - uses: dtolnay/rust-toolchain@stable
-
+        with:
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          key: ${{ matrix.target }}
+      - run: npm ci
+
+      # Dedicated keychain: temporary keychains created by build tools fail to unlock on hosted runners
+      - name: Import the Developer ID certificate
+        if: env.SIGN_MAC == 'true'
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          kc_pass=$(openssl rand -hex 24)
+          echo "$MAC_CSC_LINK" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$kc_pass" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$kc_pass" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$MAC_CSC_KEY_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kc_pass" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity=$(security find-identity -v -p codesigning "$keychain" | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"')
+          test -n "$identity"
+          echo "APPLE_SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Prepare notarization key
+        if: env.SIGN_MAC == 'true'
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey_${APPLE_API_KEY_ID}.p8"
+          echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/keys/AuthKey_${APPLE_API_KEY_ID}.p8" >> "$GITHUB_ENV"
+          echo "API_PRIVATE_KEYS_DIR=$RUNNER_TEMP/keys" >> "$GITHUB_ENV"
+
+      # Signs with APPLE_SIGNING_IDENTITY and notarizes (APPLE_API_KEY / APPLE_API_ISSUER) when they are set
+      - run: npx tauri build --target ${{ matrix.target }} --bundles app,dmg
+        env:
+          APPLE_API_KEY: ${{ env.SIGN_MAC == 'true' && secrets.APPLE_API_KEY_ID || '' }}
+          APPLE_API_ISSUER: ${{ env.SIGN_MAC == 'true' && secrets.APPLE_API_ISSUER || '' }}
+
+      - name: Verify signature and notarization
+        if: env.SIGN_MAC == 'true'
+        run: |
+          app="src-tauri/target/${{ matrix.target }}/release/bundle/macos/Sshelby.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          spctl --assess --type execute -vv "$app" 2>&1 | tee /tmp/spctl.txt
+          grep -q "source=Notarized Developer ID" /tmp/spctl.txt
+          xcrun stapler validate "$app"
+
+      - name: Clean up signing material
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/keys"
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sshelby-macos-${{ matrix.target }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+    # Built on 22.04 so the packages run on older glibc versions too
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file >/dev/null
 
       - run: npm ci
       - run: npm run typecheck
-
       - run: cargo test --manifest-path src-tauri/Cargo.toml
-
-      # --no-bundle: just the executable (frontend embedded); it uses the system WebView2
-      - run: npx tauri build --no-bundle
-
-      - name: Rename portable executable
-        shell: bash
-        run: |
-          version=$(node -p "require('./package.json').version")
-          mkdir -p dist-tauri
-          cp src-tauri/target/release/sshelby.exe "dist-tauri/Sshelby-${version}-portable.exe"
-          ls -l dist-tauri
+      - run: npx tauri build --target ${{ matrix.target }} --bundles appimage,deb,rpm
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sshelby-tauri-windows-unsigned
-          path: dist-tauri/*.exe
+          name: sshelby-linux-${{ matrix.target }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm
           if-no-files-found: error
 
-  # Signing runs on Linux: ssign is a pinned Linux release (checksum verified)
-  sign-windows:
-    needs: windows
-    runs-on: ubuntu-latest
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            arch: x64
+          - target: aarch64-pc-windows-msvc
+            arch: arm64
+    runs-on: windows-latest
     env:
       SIGN_WINDOWS: ${{ secrets.CERTUM_TOTP_SECRET != '' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+      - run: npm ci
+
+      # ssign signs through Certum's cloud API over HTTPS. Pinned release, checksum verified.
+      - name: Install ssign
+        if: env.SIGN_WINDOWS == 'true'
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ssign.zip" https://github.com/Le-Syl21/ssign/releases/download/v0.1.8/ssign-windows-x86_64.zip
+          echo "89cbac647d19819a1a82645d2254ac51d2b34050835421294584385dadde1298  $RUNNER_TEMP/ssign.zip" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/ssign"
+          unzip -q "$RUNNER_TEMP/ssign.zip" -d "$RUNNER_TEMP/ssign"
+          find "$RUNNER_TEMP/ssign" -name 'ssign*.exe' -exec dirname {} \; | head -1 >> "$GITHUB_PATH"
+
+      # signCommand signs the app executable before NSIS packs it, then the installer
+      - name: Build
+        env:
+          CERTUM_EMAIL: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_USERNAME || '' }}
+          CERTUM_OTP: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_TOTP_SECRET || '' }}
+        run: |
+          args=(--target ${{ matrix.target }} --bundles nsis)
+          if [ "$SIGN_WINDOWS" = "true" ]; then
+            script=$(cygpath -m "$GITHUB_WORKSPACE/build/sign-win.sh")
+            args+=(--config "{\"bundle\":{\"windows\":{\"signCommand\":{\"cmd\":\"bash\",\"args\":[\"$script\",\"%1\"]}}}}")
+          fi
+          npx tauri build "${args[@]}"
+
+      - name: Collect packages
+        run: |
+          version=$(node -p "require('./package.json').version")
+          release="src-tauri/target/${{ matrix.target }}/release"
+          mkdir -p dist
+          cp "$release"/bundle/nsis/*-setup.exe dist/
+          # The signed app executable doubles as the portable version (it uses the system WebView2)
+          cp "$release/sshelby.exe" "dist/Sshelby_${version}_${{ matrix.arch }}-portable.exe"
+          ls -l dist
+
+      - name: Verify signatures
+        if: env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        run: |
+          foreach ($f in Get-ChildItem dist/*.exe) {
+            $sig = Get-AuthenticodeSignature $f.FullName
+            "{0}: {1} ({2})" -f $f.Name, $sig.Status, $sig.SignerCertificate.Subject
+            if ($sig.Status -ne 'Valid' -or -not $sig.TimeStamperCertificate) { throw "Bad signature on $($f.Name)" }
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sshelby-windows-${{ matrix.target }}
+          path: dist/*.exe
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: sshelby-tauri-windows-unsigned
-          path: dist-tauri
-
-      # ssign signs through Certum's cloud API over HTTPS. Pinned release, checksum verified.
-      - name: Install ssign and osslsigncode
-        if: env.SIGN_WINDOWS == 'true'
-        run: |
-          curl -fsSL -o /tmp/ssign.tar.gz https://github.com/Le-Syl21/ssign/releases/download/v0.1.8/ssign-linux-x86_64.tar.gz
-          echo "fc38f083ea1f061a097a3a9c5dc1a056c9c7310a47e40f56a8976895ec5a928d  /tmp/ssign.tar.gz" | sha256sum -c -
-          sudo tar xzf /tmp/ssign.tar.gz -C /usr/local/bin ssign
-          sudo apt-get update -qq && sudo apt-get install -y -qq osslsigncode >/dev/null
-
-      - name: Sign and verify
-        if: env.SIGN_WINDOWS == 'true'
-        env:
-          CERTUM_EMAIL: ${{ secrets.CERTUM_USERNAME }}
-          CERTUM_OTP: ${{ secrets.CERTUM_TOTP_SECRET }}
-        run: |
-          for f in dist-tauri/*.exe; do
-            # The cloud API is occasionally slow to answer: retry like build/sign-win.js
-            for attempt in 1 2 3; do ssign "$f" && break; sleep $((attempt * 10)); done
-            osslsigncode verify -in "$f" -CAfile /etc/ssl/certs/ca-certificates.crt | tee /tmp/verify.txt
-            grep -q "Signature verification: ok" /tmp/verify.txt
-          done
-
-      - uses: actions/upload-artifact@v4
+          path: packages
+          merge-multiple: true
+      - run: ls -l packages
+      - uses: softprops/action-gh-release@v2
         with:
-          name: sshelby-tauri-windows
-          path: dist-tauri/*.exe
-          if-no-files-found: error
+          draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: packages/*
