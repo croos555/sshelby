@@ -184,7 +184,9 @@ jobs:
           args=(--target ${{ matrix.target }} --bundles nsis)
           if [ "$SIGN_WINDOWS" = "true" ]; then
             script=$(cygpath -m "$GITHUB_WORKSPACE/build/sign-win.sh")
-            args+=(--config "{\"bundle\":{\"windows\":{\"signCommand\":{\"cmd\":\"bash\",\"args\":[\"$script\",\"%1\"]}}}}")
+            # Absolute path to Git Bash: a bare "bash" resolves to WSL's launcher on the runner
+            gitbash=$(cygpath -m "$(command -v bash)")
+            args+=(--config "{\"bundle\":{\"windows\":{\"signCommand\":{\"cmd\":\"$gitbash\",\"args\":[\"$script\",\"%1\"]}}}}")
           fi
           npx tauri build "${args[@]}"
 
