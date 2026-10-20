@@ -3,47 +3,46 @@
 ## Local builds
 
 ```bash
-npm run dist:mac       # dmg + zip, x64 and arm64   (dist:mac:arm = Apple Silicon only)
-npm run dist:win       # NSIS installer (x64 + arm64) + portable exe (x64)
-npm run dist:linux     # AppImage (x64 + arm64) + deb (x64) + rpm (x64, needs rpmbuild)
+npm run build      # tauri build: release binary + packages for the current OS
 ```
 
-Output goes to `dist/`. macOS packages can only be built on macOS; Windows and Linux packages can be
-built on macOS too (no Wine needed), or on Linux with Wine for the Windows part.
+Packages are written to `src-tauri/target/release/bundle/`:
 
-The packaged app contains only `out/` and the production dependencies; ssh2's optional native
-add-ons are excluded so the app is pure JavaScript on every platform.
+| OS | Packages |
+|---|---|
+| macOS | `.app`, `.dmg` |
+| Windows | NSIS installer; `src-tauri/target/release/sshelby.exe` is the portable executable |
+| Linux | AppImage, `.deb`, `.rpm` |
+
+Each OS builds its own packages. A single portable executable is enough on Windows: it uses the
+WebView2 runtime that ships with Windows 10 and 11.
 
 ## Continuous integration
 
 ### Checks (`.github/workflows/ci.yml`)
 
-Every push to `main` and every pull request runs `npm ci`, the typecheck, the build and
+Every push to `main` and every pull request runs `npm ci`, the typecheck, the UI build and
 `npm audit --omit=dev`. Dependabot (`.github/dependabot.yml`) opens weekly dependency updates.
 
 ### Packages (`.github/workflows/build.yml`)
 
-Builds every package on GitHub-hosted runners (macOS, Windows, Linux), free for public repositories.
-It runs on tags `v*` and manually (*Actions → Build → Run workflow*). Packages are uploaded as
-workflow artifacts; on a tag, a **draft release** is created with all of them attached.
+Runs on version tags (`v*`) and manually (*Actions → Build → Run workflow*). A Windows runner runs `cargo test` and builds the
+portable executable (`Sshelby-<version>-portable.exe`); a Linux job signs it (see below). The
+executable is uploaded as a workflow artifact. macOS and Linux packages are not built by CI yet.
 
 ## Code signing
 
 ### Windows (Certum Code Signing in the Cloud)
 
 Windows executables are signed with a Certum open source code signing certificate kept in Certum's
-cloud (SimplySign). The release workflow does it automatically on `v*` tags:
-
-Windows packages are built **on Linux** (`build-windows` job on `ubuntu-latest`, with Wine for the
-NSIS uninstaller stub), then:
+cloud (SimplySign), from a Linux job:
 
 1. [ssign](https://github.com/Le-Syl21/ssign) (pinned release, SHA-256 verified) is installed in the
-   job. It talks to Certum's cloud API over HTTPS and computes the one-time password from
-   the account's TOTP seed: no SimplySign Desktop, no virtual smart card.
-2. electron-builder calls [`build/sign-win.js`](../build/sign-win.js) for every executable (app,
-   installer, uninstaller, portable); ssign signs in place with SHA-256, embeds the Certum chain and
-   adds an RFC 3161 timestamp from `http://time.certum.pl`. One login covers the whole build.
-3. `osslsigncode verify` checks every signature (chain and timestamp) before the packages are uploaded.
+   job. It talks to Certum's cloud API over HTTPS and computes the one-time password from the
+   account's TOTP seed: no SimplySign Desktop, no virtual smart card.
+2. ssign signs the executable in place with SHA-256, embeds the Certum chain and adds an RFC 3161
+   timestamp from `http://time.certum.pl` (retried if the cloud API is slow).
+3. `osslsigncode verify` checks the signature (chain and timestamp) before the artifact is uploaded.
 
 Repository secrets (*Settings → Secrets and variables → Actions*):
 
@@ -52,49 +51,27 @@ Repository secrets (*Settings → Secrets and variables → Actions*):
 | `CERTUM_USERNAME` | e-mail of the SimplySign account |
 | `CERTUM_TOTP_SECRET` | TOTP seed in **Base32** (the `secret=` of the SimplySign activation QR code; if Certum shows it in hexadecimal, convert it to Base32) |
 
-Without these secrets (local builds, pull requests from forks) the hook does nothing and the build
-stays unsigned. The TOTP seed allows signing in the maintainer's name until the SimplySign QR code is
-re-issued: consider moving the secrets to a protected GitHub environment with required reviewers.
+Without these secrets (forks) the signing job skips signing. The TOTP seed allows signing in the
+maintainer's name until the SimplySign QR code is re-issued: consider moving the secrets to a
+protected GitHub environment with required reviewers.
 
 To sign by hand on a workstation, install ssign and use a one-shot code from the SimplySign mobile
-app: `ssign -e you@example.com -T 123456 app.exe`.
+app: `ssign -e you@example.com -T 123456 Sshelby.exe`.
 
-### macOS (Developer ID + notarization)
+### macOS
 
-On `v*` tags, the macOS job signs the app with a **Developer ID Application** certificate, with the
-hardened runtime, and has Apple notarize it (`notarytool` with an App Store Connect API key);
-electron-builder staples the ticket to the app. The certificate is imported into a dedicated
-keychain created for the job (electron-builder's own temporary keychain fails to unlock on hosted
-runners). The job then checks `codesign --verify`, `spctl --assess` (must report *Notarized Developer
-ID*) and `stapler validate`.
-
-Repository secrets:
-
-| Secret | Value |
-|---|---|
-| `MAC_CSC_LINK` | the Developer ID Application certificate and its private key, exported from Keychain Access as `.p12`, **base64-encoded** |
-| `MAC_CSC_KEY_PASSWORD` | the `.p12` password |
-| `APPLE_API_KEY_BASE64` | the App Store Connect API key (`AuthKey_XXXXXXXXXX.p8`, *Developer* access), base64-encoded |
-| `APPLE_API_KEY_ID` | the key ID |
-| `APPLE_API_ISSUER` | the issuer ID shown above the keys list |
-
-```bash
-base64 -i developer-id.p12 | gh secret set MAC_CSC_LINK --repo croos555/sshelby
-base64 -i AuthKey_XXXXXXXXXX.p8 | gh secret set APPLE_API_KEY_BASE64 --repo croos555/sshelby
-```
-
-The `.p12` and `.p8` are written to the runner's temp folder only for the build and deleted
-afterwards, along with the keychain. Without the secrets (forks, manual runs) macOS builds stay
-unsigned.
-
-Locally, `npm run dist:mac` signs automatically when a Developer ID certificate is in your keychain
-(notarization additionally needs `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` and
-`-c.mac.notarize=true`).
+Not wired into the Tauri workflow yet. Tauri signs and notarizes with the same Developer ID
+certificate and App Store Connect API key as the Electron releases (`APPLE_SIGNING_IDENTITY`,
+`APPLE_CERTIFICATE`, `APPLE_API_KEY`… environment variables of `tauri build`); the repository
+secrets `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD`, `APPLE_API_KEY_BASE64`, `APPLE_API_KEY_ID` and
+`APPLE_API_ISSUER` already hold them.
 
 Never store certificates or passwords in the repository.
 
 ## Releasing
 
-1. Bump `version` in `package.json` and update `CHANGELOG.md`.
-2. Commit, then tag: `git tag v0.2.0 && git push --tags`.
-3. The GitHub workflow builds every package and creates a draft release: review it and publish.
+1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, and
+   update `CHANGELOG.md`.
+2. Commit, then tag: `git tag -a vX.Y.Z -m "Sshelby X.Y.Z" && git push --tags`.
+3. The Build workflow uploads the signed Windows executable as an artifact; attach the packages to a
+   GitHub release (automatic drafting will return once macOS and Linux packaging are in CI).

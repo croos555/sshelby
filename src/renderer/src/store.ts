@@ -181,7 +181,6 @@ export async function importMobaXterm() {
 }
 
 export function errMsg(err: unknown): string {
-  const m = err instanceof Error ? err.message : String(err)
-  // Strip Electron's "Error invoking remote method 'x': Error: " prefix
-  return m.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+  // The backend rejects with plain message strings
+  return err instanceof Error ? err.message : String(err)
 }

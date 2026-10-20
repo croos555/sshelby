@@ -65,10 +65,11 @@ git clone https://github.com/croos555/sshelby.git
 cd sshelby
 npm install
 npm run dev          # run in development mode
-npm run dist:mac     # or dist:win / dist:linux
+npm run build        # packages for the current OS in src-tauri/target/release/bundle
 ```
 
-Requires Node.js 22.12 or later. See [Building & releasing](docs/building.md) for details.
+Requires Node.js 22.12+ and Rust (stable). See [Development](docs/development.md) and
+[Building & releasing](docs/building.md) for details.
 
 ## License
 

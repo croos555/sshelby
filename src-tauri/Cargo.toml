@@ -1,0 +1,47 @@
+[package]
+name = "sshelby"
+version = "0.3.0"
+description = "Local-first SSH client"
+authors = ["Christophe Roos"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "sshelby_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+russh = { version = "0.64", default-features = false, features = ["flate2", "ring", "rsa"] }
+russh-sftp = "3"
+uuid = { version = "1", features = ["v4"] }
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+aes-gcm = "0.10"
+scrypt = "0.11"
+base64 = "0.22"
+sha2 = "0.10"
+rand = "0.10"
+getrandom = "0.3"
+unicode-normalization = "0.1"
+pbkdf2 = "0.12"
+sha1 = "0.10"
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
+dirs = "6"
+anyhow = "1"
+trash = "5"
+regex = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
