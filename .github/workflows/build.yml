@@ -191,13 +191,19 @@ jobs:
           npx tauri build "${args[@]}"
 
       - name: Collect packages
+        env:
+          CERTUM_EMAIL: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_USERNAME || '' }}
+          CERTUM_OTP: ${{ env.SIGN_WINDOWS == 'true' && secrets.CERTUM_TOTP_SECRET || '' }}
         run: |
           version=$(node -p "require('./package.json').version")
           release="src-tauri/target/${{ matrix.target }}/release"
           mkdir -p dist
           cp "$release"/bundle/nsis/*-setup.exe dist/
-          # The signed app executable doubles as the portable version (it uses the system WebView2)
-          cp "$release/sshelby.exe" "dist/Sshelby_${version}_${{ matrix.arch }}-portable.exe"
+          # The app executable doubles as the portable version (it uses the system WebView2). Tauri
+          # signs the copy it packs into the installer, not the one left in target/: sign it here.
+          portable="dist/Sshelby_${version}_${{ matrix.arch }}-portable.exe"
+          cp "$release/sshelby.exe" "$portable"
+          if [ "$SIGN_WINDOWS" = "true" ]; then bash build/sign-win.sh "$portable"; fi
           ls -l dist
 
       - name: Verify signatures

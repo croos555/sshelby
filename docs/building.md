@@ -53,7 +53,7 @@ cloud (SimplySign):
    [`build/sign-win.sh`](../build/sign-win.sh), which runs ssign (with retries). Tauri calls it for the
    app executable **before** NSIS packs it, then for the installer, so both the installer and the
    installed app are signed (SHA-256, Certum chain, RFC 3161 timestamp from `http://time.certum.pl`).
-   The signed app executable is also published as the portable version.
+   The app executable is also published, signed separately, as the portable version.
 3. PowerShell's `Get-AuthenticodeSignature` checks every executable (valid chain and timestamp)
    before the artifacts are uploaded.
 
