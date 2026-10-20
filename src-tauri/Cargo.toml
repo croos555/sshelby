@@ -32,7 +32,7 @@ rand = "0.10"
 getrandom = "0.3"
 unicode-normalization = "0.1"
 pbkdf2 = "0.12"
-sha1 = "0.10"
+sha1 = "0.11"
 aes = "0.8"
 cbc = { version = "0.1", features = ["alloc"] }
 dirs = "6"
