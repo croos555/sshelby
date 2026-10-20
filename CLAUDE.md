@@ -128,7 +128,7 @@ build/            icon.svg (source) → icon.png; src-tauri/icons generated with
 
 - `.github/workflows/ci.yml` (main, pull requests): typecheck, UI build, `npm audit --omit=dev`.
 - `.github/workflows/build.yml` (tags `v*`, manual): macOS arm64 + x64 dmg (signed + notarized on
-  tags), Linux amd64 + arm64 AppImage/deb/rpm (Ubuntu 22.04 for glibc compatibility; also runs the
+  tags and manual runs), Linux amd64 + arm64 AppImage/deb/rpm (Ubuntu 22.04 for glibc compatibility; also runs the
   typecheck and `cargo test`), Windows x64 + arm64 NSIS installer + portable exe; tags draft a release
   (pre-release for `-rc`).
 - Windows signing: ssign (Certum cloud API, pinned Windows release + SHA-256) through

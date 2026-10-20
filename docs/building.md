@@ -73,7 +73,7 @@ app: `ssign -e you@example.com -T 123456 Sshelby.exe`.
 
 ### macOS (Developer ID + notarization)
 
-On `v*` tags, the macOS jobs import the **Developer ID Application** certificate into a dedicated
+On `v*` tags and manual runs, the macOS jobs import the **Developer ID Application** certificate into a dedicated
 keychain created for the job (temporary keychains created by build tools fail to unlock on hosted
 runners) and pass its identity to `tauri build` (`APPLE_SIGNING_IDENTITY`). Tauri signs the app with
 the hardened runtime and has Apple notarize it with an App Store Connect API key (`APPLE_API_KEY`,
@@ -96,8 +96,7 @@ base64 -i AuthKey_XXXXXXXXXX.p8 | gh secret set APPLE_API_KEY_BASE64 --repo croo
 ```
 
 The `.p12` and `.p8` are written to the runner's temp folder only for the build and deleted
-afterwards, along with the keychain. Without the secrets, and on manual runs, macOS builds stay
-unsigned. The first notarization of an Apple account can take up to an hour.
+afterwards, along with the keychain. Without the secrets (forks) macOS builds stay unsigned. The first notarization of an Apple account can take up to an hour.
 
 Never store certificates or passwords in the repository.
 
