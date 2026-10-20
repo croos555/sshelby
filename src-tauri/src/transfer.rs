@@ -1,6 +1,6 @@
 // Selective export / import of hosts and groups between machines.
 // File = JSON envelope; payload is AES-256-GCM with a key derived from the passphrase by scrypt
-// (same format as the Electron build, files are interchangeable).
+// (same format as the former Electron build, so older export files still import).
 
 use std::collections::{HashMap, HashSet};
 
@@ -421,4 +421,40 @@ pub async fn transfer_import(path: String, passphrase: Option<String>) -> Result
     let summary = merge(&mut store(), &p);
     notify_changed();
     Ok(summary)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encrypted_export_round_trip() {
+        let payload = json!({ "exportedAt": 1, "hosts": [{ "id": "h1", "address": "example.com", "password": "secret" }] });
+        let env = encrypt(&payload, "correct horse").unwrap();
+        assert_eq!(env["kdf"]["N"], 1 << LOG_N);
+        assert!(!env.to_string().contains("secret"));
+        assert_eq!(decrypt(&env, "correct horse").unwrap(), payload);
+        assert!(decrypt(&env, "wrong key!").is_err());
+    }
+
+    #[test]
+    fn rejects_tampering_and_absurd_kdf() {
+        let env = encrypt(&json!({ "hosts": [] }), "correct horse").unwrap();
+        // A single flipped ciphertext bit fails the GCM tag check
+        let mut tampered = env.clone();
+        let mut data = B64.decode(env["data"].as_str().unwrap()).unwrap();
+        data[0] ^= 1;
+        tampered["data"] = json!(B64.encode(data));
+        assert!(decrypt(&tampered, "correct horse").is_err());
+        let mut heavy = env.clone();
+        heavy["kdf"]["N"] = json!(1u64 << 22);
+        assert!(decrypt(&heavy, "correct horse").is_err());
+    }
+
+    #[test]
+    fn secrets_detection() {
+        assert!(!has_secrets(&json!({ "hosts": [{ "address": "a" }], "keys": [] })));
+        assert!(has_secrets(&json!({ "hosts": [{ "address": "a", "password": "x" }] })));
+        assert!(has_secrets(&json!({ "keys": [{ "id": "k" }] })));
+    }
 }

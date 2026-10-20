@@ -5,11 +5,15 @@
 - All data is stored in `vault.json` in the application data folder. There is no account, no
   server and no telemetry.
 - Secrets (host and group passwords, identity passwords, private keys and their passphrases) are
-  encrypted with Electron's `safeStorage`:
-  - **macOS**: Keychain (an item named *Sshelby Safe Storage*),
-  - **Windows**: DPAPI, tied to your Windows user account,
-  - **Linux**: GNOME Keyring / KWallet through libsecret. Without a keyring, secrets are only
-    obfuscated; Settings → Data shows a warning in that case.
+  encrypted with **AES-256-GCM** (random 12-byte nonce per value). The 256-bit key is generated on
+  first start and kept in the operating system's credential store:
+  - **macOS**: Keychain (item *dev.sshelby.app* / *vault-key*),
+  - **Windows**: Credential Manager, tied to your Windows user account,
+  - **Linux**: GNOME Keyring / KWallet through the Secret Service API. Without one, secrets are
+    stored unencrypted; Settings → Data shows a warning in that case.
+- On first start, a vault from the former Electron build is imported; its secrets are decrypted
+  with the Electron key (macOS asks for permission to read *sshelby Safe Storage*) and re-encrypted
+  with the new key. The old file is left untouched.
 - The vault file is written atomically with `0600` permissions.
 
 ## Connections
@@ -29,13 +33,14 @@
 - A wrong key or a modified file is rejected. Choose a strong passphrase: anyone holding the file can
   attempt offline guesses.
 - Credentials (passwords, SSH keys, identities) are excluded by default. A file containing any of
-  them is always encrypted: the main process refuses to write it in clear. Without credentials the
+  them is always encrypted: the backend refuses to write it in clear. Without credentials the
   export may be saved unencrypted (plain JSON with the hosts, groups and settings selected).
 
-## Renderer isolation
+## UI isolation
 
-The UI runs with `contextIsolation` and without Node integration; it talks to the main process only
-through a fixed preload API. Content Security Policy restricts scripts to the app itself.
+The UI runs in the system webview without access to the file system or the network: it can only
+call the backend's commands and the plugin APIs listed in `src-tauri/capabilities` (file dialogs,
+opening files and links). The Content Security Policy restricts scripts to the app itself.
 
 ## Remote file editing
 

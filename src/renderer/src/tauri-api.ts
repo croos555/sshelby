@@ -1,16 +1,16 @@
-// Tauri build: provides the same window.api as the Electron preload, on top of Tauri commands and
-// events. Command names are the Electron channel names in snake_case; event names are unchanged.
+// window.api over Tauri IPC: commands are snake_case Rust functions (src-tauri/src), events keep
+// the "area:name" form emitted by the backend.
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import type { Api } from '../../preload/index'
+import type { Api, Platform } from './api'
 
 function on<T>(event: string, cb: (payload: T) => void): () => void {
   const unlisten = listen<T>(event, (e) => cb(e.payload))
   return () => void unlisten.then((f) => f())
 }
 
-function platform(): NodeJS.Platform {
+function platform(): Platform {
   const ua = navigator.userAgent
   if (/Mac/i.test(ua)) return 'darwin'
   if (/Win/i.test(ua)) return 'win32'

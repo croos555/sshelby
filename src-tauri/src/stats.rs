@@ -113,3 +113,31 @@ pub fn parse_stats(out: &str, prev: Option<CpuSample>) -> (Value, Option<CpuSamp
     stats["disks"] = json!(disks.iter().map(|(m, u, t)| json!({ "mount": m, "used": u, "total": t })).collect::<Vec<_>>());
     (stats, sample)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SAMPLE: &str = "cpu  100 0 100 800 0 0 0 0 0 0\n@@\nMemTotal: 1000 kB\nMemAvailable: 400 kB\nSwapTotal: 0 kB\nSwapFree: 0 kB\n@@\n0.50 0.40 0.30 1/100 42\n@@\n4\n@@\nFilesystem 1024-blocks Used Available Capacity Mounted on\n/dev/sda1 100 60 40 60% /\ntmpfs 50 1 49 2% /run\n/dev/sdb1 1000 10 990 1% /data\n";
+
+    #[test]
+    fn parses_memory_load_cores_and_disks() {
+        let (stats, sample) = parse_stats(SAMPLE, None);
+        assert!(sample.is_some());
+        assert!(stats.get("cpu").is_none(), "CPU needs two samples");
+        assert_eq!(stats["mem"]["used"], 600 * 1024);
+        assert!(stats.get("swap").is_none(), "no swap configured");
+        assert_eq!(stats["load"][0], 0.5);
+        assert_eq!(stats["cores"], 4);
+        let mounts: Vec<&str> = stats["disks"].as_array().unwrap().iter().map(|d| d["mount"].as_str().unwrap()).collect();
+        assert_eq!(mounts, ["/", "/data"], "root first, pseudo filesystems skipped");
+    }
+
+    #[test]
+    fn cpu_percent_from_two_samples() {
+        let (_, first) = parse_stats(SAMPLE, None);
+        let next = SAMPLE.replace("cpu  100 0 100 800", "cpu  150 0 150 900");
+        let (stats, _) = parse_stats(&next, first);
+        assert_eq!(stats["cpu"], 50.0);
+    }
+}

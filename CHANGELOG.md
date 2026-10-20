@@ -5,6 +5,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Rebuilt on Tauri 2 with a Rust backend (`russh`): the app uses the system webview, so packages
+  shrink from ~120 MB to a few MB (portable Windows exe ~5 MB). The UI is unchanged.
+- Secrets are encrypted with AES-256-GCM using a key kept in the OS keychain. The vault of the
+  previous version is imported on first start (secrets included on macOS and Linux).
+- The password prompt now says when the server refused the SSH key or agent key.
+
+### Known limitations
+- Not yet available: agent forwarding, "keep running in background", dropping files from the OS
+  onto the SFTP pane, importing secrets of the previous version on Windows.
+
 ## [0.1.2] — 2026-10-19
 
 ### Added

@@ -30,6 +30,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
 
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+
       # --no-bundle: just the executable (frontend embedded); it uses the system WebView2
       - run: npx tauri build --no-bundle
 
@@ -47,7 +49,7 @@ jobs:
           path: dist-tauri/*.exe
           if-no-files-found: error
 
-  # Signing runs on Linux with the same pinned ssign release as the Electron build
+  # Signing runs on Linux: ssign is a pinned Linux release (checksum verified)
   sign-windows:
     needs: windows
     runs-on: ubuntu-latest

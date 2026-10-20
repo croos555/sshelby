@@ -260,3 +260,19 @@ pub fn close_all() {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Utf8Stream;
+
+    #[test]
+    fn keeps_split_multibyte_characters() {
+        let bytes = "héllo €".as_bytes();
+        let mut s = Utf8Stream::default();
+        let mut out = String::new();
+        for chunk in bytes.chunks(1) {
+            out.push_str(&s.push(chunk));
+        }
+        assert_eq!(out, "héllo €");
+    }
+}

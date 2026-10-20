@@ -11,7 +11,7 @@ use base64::Engine;
 use crate::util::random_bytes;
 
 const PREFIX: &str = "enc:v2:";
-// Written by the Electron build (Chromium os_crypt through safeStorage)
+// Written by the former Electron build (Chromium os_crypt through safeStorage)
 pub const ELECTRON_PREFIX: &str = "enc:v1:";
 const SERVICE: &str = "dev.sshelby.app";
 const ACCOUNT: &str = "vault-key";
@@ -82,7 +82,7 @@ pub fn decrypt(value: &str) -> String {
     value.to_string()
 }
 
-// One-time migration from the Electron build's vault: Chromium os_crypt "v10" values,
+// One-time migration from the former Electron build's vault: Chromium os_crypt "v10" values,
 // AES-128-CBC with a key derived from a password stored in the keychain.
 mod electron {
     use super::B64;
@@ -99,9 +99,12 @@ mod electron {
             .get_or_init(|| {
                 if cfg!(target_os = "macos") {
                     // Electron names the item "<App> Safe Storage"; macOS asks the user before handing it over
-                    for account in ["Sshelby Key", "Sshelby"] {
-                        if let Ok(p) = keyring::Entry::new("Sshelby Safe Storage", account).and_then(|e| e.get_password()) {
-                            return Some(p);
+                    for name in ["sshelby", "Sshelby"] {
+                        for account in [format!("{name} Key"), name.to_string()] {
+                            let service = format!("{name} Safe Storage");
+                            if let Ok(p) = keyring::Entry::new(&service, &account).and_then(|e| e.get_password()) {
+                                return Some(p);
+                            }
                         }
                     }
                     None

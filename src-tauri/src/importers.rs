@@ -96,6 +96,7 @@ pub fn vault_import_ssh_config() -> Result<usize> {
 //   My server=#109#0%host%22%user%%-1%-1%%gwhost%22%gwuser%0%0%0%_ProfileDir_\.ssh\id_rsa%…#MobaFont%…
 // The value is "#icon#type" then %-separated fields; type 0 = SSH, 7 = SFTP.
 
+#[derive(Debug)]
 struct MobaSession {
     name: String,
     folder: Vec<String>,
@@ -307,4 +308,33 @@ pub fn vault_import_moba(path: String) -> Result<Value> {
     }
     notify_changed();
     Ok(json!({ "hosts": hosts, "updated": updated, "groups": groups, "jumpHosts": jump_hosts, "keys": keys, "keysMissing": keys_missing, "skipped": skipped }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_ssh_sessions_and_skips_others() {
+        let text = "[Bookmarks]\nSubRep=\nImgNum=42\n\
+            web=#109#0%web.example.com%2222%deploy%%-1%-1%%bastion%22%jump%0%0%0%_ProfileDir_\\.ssh\\id_ed25519%#MobaFont%10#0# #-1\n\
+            [Bookmarks_1]\nSubRep=Prod\\DB\nImgNum=41\n\
+            files=#140#7%files.example.com%22%ftpuser%%#MobaFont#0\n\
+            desk=#91#4%desk.example.com%3389%%#MobaFont#0\n";
+        let (sessions, skipped) = parse_moba(text);
+        assert_eq!(sessions.len(), 2);
+        let web = &sessions[0];
+        assert_eq!((web.host.as_str(), web.port, web.username.as_deref()), ("web.example.com", Some(2222), Some("deploy")));
+        assert_eq!(web.gateway, Some(("bastion".into(), Some(22), Some("jump".into()))));
+        assert_eq!(web.key_path.as_deref(), Some("_ProfileDir_\\.ssh\\id_ed25519"));
+        assert!(web.folder.is_empty());
+        assert_eq!(sessions[1].folder, ["Prod", "DB"]);
+        assert_eq!(skipped.len(), 1);
+        assert_eq!(skipped[0]["kind"], "rdp");
+    }
+
+    #[test]
+    fn unescapes_names() {
+        assert_eq!(unescape("a__PIPE__b__DIEZE__c__PTVIRG__d__PERCENT__e"), "a|b#c;d%e");
+    }
 }

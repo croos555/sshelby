@@ -1,5 +1,5 @@
-// Sshelby, Tauri build: Rust backend behind the same renderer as the Electron build.
-// Command and event names mirror the Electron IPC channels (see src/renderer/src/tauri-api.ts).
+// Sshelby backend: SSH, SFTP, forwarding and the local vault, exposed to the React UI as Tauri
+// commands (snake_case) and events ("area:name"); see src/renderer/src/tauri-api.ts.
 
 mod agent;
 mod forwards;
@@ -15,9 +15,28 @@ mod store;
 mod transfer;
 mod util;
 
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
+
+use tauri::Manager;
+
+// Keep the splash up long enough not to flash
+const SPLASH_MIN: Duration = Duration::from_millis(900);
+static STARTED: OnceLock<Instant> = OnceLock::new();
+
+// The UI has rendered: swap the splash for the main window, then auto-start forwards
+// (they may need the UI to answer host-key / password prompts)
 #[tauri::command]
-fn app_ready() {
-    // Auto-start forwards once the UI can answer host-key / password prompts
+async fn app_ready(app: tauri::AppHandle) {
+    let elapsed = STARTED.get().map(Instant::elapsed).unwrap_or(SPLASH_MIN);
+    tokio::time::sleep(SPLASH_MIN.saturating_sub(elapsed)).await;
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+    if let Some(splash) = app.get_webview_window("splash") {
+        let _ = splash.close();
+    }
     forwards::auto_start();
 }
 
@@ -26,8 +45,20 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            STARTED.get_or_init(Instant::now);
             util::set_app(app.handle().clone());
             store::store().load();
+            // Never leave the user with only a splash if the UI fails to report that it rendered
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(8)).await;
+                if let Some(splash) = handle.get_webview_window("splash") {
+                    let _ = splash.close();
+                    if let Some(main) = handle.get_webview_window("main") {
+                        let _ = main.show();
+                    }
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

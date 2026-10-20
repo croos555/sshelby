@@ -80,10 +80,11 @@ pub fn store() -> MutexGuard<'static, Store> {
     STORE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-// Vault of the Electron build, imported once when this build starts without a vault of its own
+// Vault of the former Electron build (userData = <config dir>/<package name>), imported once when
+// this build starts without a vault of its own. The original file is left untouched.
 fn electron_vault() -> Option<PathBuf> {
-    let p = dirs::config_dir()?.join("Sshelby").join("vault.json");
-    p.exists().then_some(p)
+    let dir = dirs::config_dir()?;
+    ["sshelby", "Sshelby"].iter().map(|n| dir.join(n).join("vault.json")).find(|p| p.exists())
 }
 
 impl Store {
