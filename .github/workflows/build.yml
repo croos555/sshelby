@@ -86,7 +86,7 @@ jobs:
           rm -rf "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/keys"
           security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sshelby-macos-${{ matrix.target }}
           path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
@@ -126,7 +126,7 @@ jobs:
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: npx tauri build --target ${{ matrix.target }} --bundles appimage,deb,rpm
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sshelby-linux-${{ matrix.target }}
           path: |
@@ -208,7 +208,7 @@ jobs:
             if ($sig.Status -ne 'Valid' -or -not $sig.TimeStamperCertificate) { throw "Bad signature on $($f.Name)" }
           }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sshelby-windows-${{ matrix.target }}
           path: dist/*.exe
