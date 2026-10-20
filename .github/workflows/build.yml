@@ -233,10 +233,11 @@ jobs:
         with:
           path: packages
           merge-multiple: true
-      - run: ls -l packages
+      # Linux artifacts keep their bundle sub-folders (appimage/, deb/, rpm/)
+      - run: find packages -type f | sort
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
-          files: packages/*
+          files: packages/**/*

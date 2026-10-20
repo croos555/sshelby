@@ -13,8 +13,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 - Rebuilt on Tauri 2 with a Rust backend (`russh`): the app uses the system webview, so packages
-  shrink from ~120 MB to a few MB (dmg ~5 MB, Windows installer or portable exe ~4 MB, deb/rpm
-  5 MB; the self-contained AppImage stays ~80 MB). The UI is unchanged.
+  shrink from ~120 MB to a few MB (dmg ~5 MB, Windows installer ~3.5 MB, portable exe ~11 MB,
+  deb/rpm 5 MB; the self-contained AppImage stays ~80 MB). The UI is unchanged.
 - Secrets are encrypted with AES-256-GCM using a key kept in the OS keychain. The vault of the
   previous version is imported on first start (secrets included on macOS and Linux).
 - The password prompt now says when the server refused the SSH key or agent key.
