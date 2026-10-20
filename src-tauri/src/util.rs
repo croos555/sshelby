@@ -46,7 +46,7 @@ impl<E: Into<anyhow::Error>> From<E> for Error {
 }
 
 impl Serialize for Error {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {
         s.serialize_str(&format!("{:#}", self.0))
     }
 }

@@ -15,7 +15,12 @@
     "dist:mac": "electron-vite build && electron-builder --mac --x64 --arm64",
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:linux": "electron-vite build && electron-builder --linux",
-    "dist:mac:arm": "electron-vite build && electron-builder --mac --arm64"
+    "dist:mac:arm": "electron-vite build && electron-builder --mac --arm64",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:web": "vite --config vite.tauri.config.ts",
+    "tauri:web:build": "vite build --config vite.tauri.config.ts"
   },
   "build": {
     "appId": "dev.sshelby.app",

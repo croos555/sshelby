@@ -105,7 +105,8 @@ export default function App() {
 
   return (
     <div className="app">
-      <div className={`titlebar ${window.api.platform === 'darwin' ? 'mac' : ''}`}>
+      {/* data-tauri-drag-region: the Tauri build's equivalent of -webkit-app-region */}
+      <div className={`titlebar ${window.api.platform === 'darwin' ? 'mac' : ''}`} data-tauri-drag-region>
         <button className={`tab ${activeTab === null ? 'active' : ''}`} onClick={() => setActiveTab(null)}>
           <LayoutGrid size={14} />
           <span className="title">Vault</span>
@@ -152,7 +153,7 @@ export default function App() {
         <button className="tab-add" title="New SFTP tab" onClick={() => openTab('sftp')}>
           <Plus size={16} />
         </button>
-        <div className="spacer" />
+        <div className="spacer" data-tauri-drag-region />
       </div>
 
       <div className="body">
