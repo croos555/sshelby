@@ -345,6 +345,8 @@ async fn authenticate(handle: &mut Handle<Client>, r: &Resolved, log: &Log) -> a
     ));
     let mut remaining: Option<MethodSet> = None;
     let mut ok = false;
+    // Why we end up asking for a password, shown in the prompt (forwards have no terminal log)
+    let mut refused: Option<&str> = None;
     let track = |res: AuthResult, remaining: &mut Option<MethodSet>| -> bool {
         match res {
             AuthResult::Success => true,
@@ -375,6 +377,9 @@ async fn authenticate(handle: &mut Handle<Client>, r: &Resolved, log: &Log) -> a
                 let hash = if pk.algorithm().is_rsa() { handle.best_supported_rsa_hash().await?.flatten() } else { None };
                 let res = handle.authenticate_publickey(&username, PrivateKeyWithHashAlg::new(Arc::new(pk), hash)).await?;
                 ok = track(res, &mut remaining);
+                if !ok {
+                    refused = Some("The server refused the SSH key.");
+                }
                 trace(&format!("key \"{key_label}\" ok={ok} remaining={remaining:?}"));
             }
         }
@@ -417,6 +422,7 @@ async fn authenticate(handle: &mut Handle<Client>, r: &Resolved, log: &Log) -> a
                                     ok = true;
                                     break;
                                 }
+                                refused = Some("The server refused the SSH agent key.");
                             }
                             Err(e) => log(&format!("SSH agent refused to sign: {e}")),
                         }
@@ -483,8 +489,12 @@ async fn authenticate(handle: &mut Handle<Client>, r: &Resolved, log: &Log) -> a
     let mut attempts = 0;
     while !ok && allowed(&remaining, MethodKind::Password) && attempts < 3 {
         attempts += 1;
-        let message = if attempts > 1 { "Authentication failed. Try again." } else { "Password" };
-        let (value, save) = ask_secret(&format!("{username}@{}", r.address), message, !r.via_identity).await;
+        let message = match (attempts, refused) {
+            (1, Some(why)) => format!("{why} Password"),
+            (1, None) => "Password".to_string(),
+            _ => "Authentication failed. Try again.".to_string(),
+        };
+        let (value, save) = ask_secret(&format!("{username}@{}", r.address), &message, !r.via_identity).await;
         let Some(pw) = value else { bail!("Cancelled") };
         save_password = save.then(|| pw.clone());
         ok = track(handle.authenticate_password(&username, &pw).await?, &mut remaining);
