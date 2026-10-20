@@ -5,9 +5,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-20
+
+### Added
+- Windows ARM64 installer and portable exe; Linux arm64 `.deb` and `.rpm` next to the AppImage.
+- Rust unit tests run in CI.
+
 ### Changed
 - Rebuilt on Tauri 2 with a Rust backend (`russh`): the app uses the system webview, so packages
-  shrink from ~120 MB to a few MB (portable Windows exe ~5 MB). The UI is unchanged.
+  shrink from ~120 MB to a few MB (dmg ~5 MB, Windows installer or portable exe ~4 MB, deb/rpm
+  5 MB; the self-contained AppImage stays ~80 MB). The UI is unchanged.
 - Secrets are encrypted with AES-256-GCM using a key kept in the OS keychain. The vault of the
   previous version is imported on first start (secrets included on macOS and Linux).
 - The password prompt now says when the server refused the SSH key or agent key.
