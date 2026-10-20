@@ -1,10 +1,11 @@
-name: Tauri test build
+name: Build
 
-# Experimental Tauri build (branch "tauri"): portable Windows exe, signed with the Certum cloud
-# certificate when the secrets exist. Artifacts only, no release.
+# Portable Windows exe, tested and signed with the Certum cloud certificate when the secrets exist.
+# Runs on version tags and manually; packages are uploaded as workflow artifacts.
+# macOS (signing + notarization) and Linux packages are not wired in yet, see docs/building.md.
 on:
   push:
-    branches: [tauri]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:

@@ -24,9 +24,9 @@ WebView2 runtime that ships with Windows 10 and 11.
 Every push to `main` and every pull request runs `npm ci`, the typecheck, the UI build and
 `npm audit --omit=dev`. Dependabot (`.github/dependabot.yml`) opens weekly dependency updates.
 
-### Tauri build (`.github/workflows/tauri.yml`)
+### Packages (`.github/workflows/build.yml`)
 
-Runs on pushes to the `tauri` branch and manually. A Windows runner runs `cargo test` and builds the
+Runs on version tags (`v*`) and manually (*Actions → Build → Run workflow*). A Windows runner runs `cargo test` and builds the
 portable executable (`Sshelby-<version>-portable.exe`); a Linux job signs it (see below). The
 executable is uploaded as a workflow artifact. macOS and Linux packages are not built by CI yet.
 
@@ -73,3 +73,5 @@ Never store certificates or passwords in the repository.
 1. Bump the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, and
    update `CHANGELOG.md`.
 2. Commit, then tag: `git tag -a vX.Y.Z -m "Sshelby X.Y.Z" && git push --tags`.
+3. The Build workflow uploads the signed Windows executable as an artifact; attach the packages to a
+   GitHub release (automatic drafting will return once macOS and Linux packaging are in CI).

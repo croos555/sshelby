@@ -20,7 +20,8 @@ standards expected of a well-run open source repository:
 - **Versioning**: [Semantic Versioning](https://semver.org/); the version in `package.json`,
   `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, `CHANGELOG.md`
   ([Keep a Changelog](https://keepachangelog.com/), user-visible changes under *Unreleased*) and the
-  `vX.Y.Z` tag must agree. Releases are cut by pushing an annotated tag; CI drafts the GitHub release.
+  `vX.Y.Z` tag must agree. Releases are cut by pushing an annotated tag; CI builds the packages
+  (drafting the GitHub release comes back with the macOS/Linux packaging).
 - **Quality gates**: `npm run typecheck`, `npm run web:build` and `cargo test` (in `src-tauri`) must
   pass before pushing; CI checks every push and pull request. Keep `npm audit --omit=dev` clean and
   dependencies (npm and crates) MIT-compatible.
@@ -127,7 +128,7 @@ build/            icon.svg (source) → icon.png; src-tauri/icons generated with
 ## CI
 
 - `.github/workflows/ci.yml` (main, pull requests): typecheck, UI build, `npm audit --omit=dev`.
-- `.github/workflows/tauri.yml` (pushes to `tauri`, manual): Windows runner builds and tests the
+- `.github/workflows/build.yml` (tags `v*`, manual): Windows runner builds and tests the
   Rust backend and produces the portable exe; a Linux job signs it with the Certum cloud certificate
   through ssign (pinned release, SHA-256 verified; secrets `CERTUM_USERNAME` / `CERTUM_TOTP_SECRET`
   in Base32) and checks it with osslsigncode. Artifacts only, no release yet.
