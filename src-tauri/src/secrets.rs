@@ -53,28 +53,32 @@ pub fn encrypt(value: &str) -> String {
     if value.is_empty() {
         return String::new();
     }
-    let cipher = Aes256Gcm::new_from_slice(key).expect("32-byte key");
+    seal(key, value).unwrap_or_else(|| value.to_string())
+}
+
+// enc:v2:base64(nonce ‖ ciphertext ‖ tag)
+fn seal(key: &[u8; 32], value: &str) -> Option<String> {
+    let cipher = Aes256Gcm::new_from_slice(key).ok()?;
     let nonce = random_bytes::<12>();
-    let Ok(ct) = cipher.encrypt(Nonce::from_slice(&nonce), value.as_bytes()) else {
-        return value.to_string();
-    };
+    let ct = cipher.encrypt(Nonce::from_slice(&nonce), value.as_bytes()).ok()?;
     let mut out = nonce.to_vec();
     out.extend(ct);
-    format!("{PREFIX}{}", B64.encode(out))
+    Some(format!("{PREFIX}{}", B64.encode(out)))
+}
+
+fn open(key: &[u8; 32], b64: &str) -> Option<String> {
+    let raw = B64.decode(b64).ok()?;
+    if raw.len() < 12 {
+        return None;
+    }
+    let cipher = Aes256Gcm::new_from_slice(key).ok()?;
+    let plain = cipher.decrypt(Nonce::from_slice(&raw[..12]), &raw[12..]).ok()?;
+    String::from_utf8(plain).ok()
 }
 
 pub fn decrypt(value: &str) -> String {
     if let Some(rest) = value.strip_prefix(PREFIX) {
-        let (Some(key), Ok(raw)) = (master_key(), B64.decode(rest)) else { return String::new() };
-        if raw.len() < 12 {
-            return String::new();
-        }
-        let cipher = Aes256Gcm::new_from_slice(key).expect("32-byte key");
-        return cipher
-            .decrypt(Nonce::from_slice(&raw[..12]), &raw[12..])
-            .ok()
-            .and_then(|b| String::from_utf8(b).ok())
-            .unwrap_or_default();
+        return master_key().and_then(|key| open(key, rest)).unwrap_or_default();
     }
     if let Some(rest) = value.strip_prefix(ELECTRON_PREFIX) {
         return electron::decrypt(rest).unwrap_or_default();
@@ -120,13 +124,46 @@ mod electron {
     }
 
     pub fn decrypt(b64: &str) -> Option<String> {
+        let iterations = if cfg!(target_os = "macos") { 1003 } else { 1 };
+        decrypt_with(password()?, iterations, b64)
+    }
+
+    pub(super) fn decrypt_with(password: &str, iterations: u32, b64: &str) -> Option<String> {
         let raw = B64.decode(b64).ok()?;
         let body = raw.strip_prefix(b"v10")?;
-        let iterations = if cfg!(target_os = "macos") { 1003 } else { 1 };
         let mut key = [0u8; 16];
-        pbkdf2::pbkdf2_hmac::<sha1::Sha1>(password()?.as_bytes(), b"saltysalt", iterations, &mut key);
+        pbkdf2::pbkdf2_hmac::<sha1::Sha1>(password.as_bytes(), b"saltysalt", iterations, &mut key);
         let iv = [b' '; 16];
         let plain = Aes128CbcDec::new(&key.into(), &iv.into()).decrypt_padded_vec_mut::<Pkcs7>(body).ok()?;
         String::from_utf8(plain).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::electron::decrypt_with;
+    use super::{open, seal, PREFIX};
+
+    // Secrets already stored in vaults must stay readable: fixture made with Node's crypto
+    #[test]
+    fn opens_stored_secrets() {
+        let key = [7u8; 32];
+        let stored = "enc:v2:IPPOsaSIhJZ8OdY2bV/D2IGVsHk/VHLwL9UHn7tNlN2d9FlyLU/MJ+HywHU=";
+        assert_eq!(open(&key, stored.strip_prefix(PREFIX).unwrap()).as_deref(), Some("vault secret ✓"));
+        assert_eq!(open(&[8u8; 32], stored.strip_prefix(PREFIX).unwrap()), None, "wrong key");
+        let sealed = seal(&key, "round trip").unwrap();
+        assert_ne!(sealed, seal(&key, "round trip").unwrap(), "fresh nonce per value");
+        assert_eq!(open(&key, sealed.strip_prefix(PREFIX).unwrap()).as_deref(), Some("round trip"));
+    }
+
+    // Fixtures made with Node's crypto (independent of this code), like Chromium's os_crypt "v10"
+    #[test]
+    fn decrypts_electron_values() {
+        // Linux basic backend: fixed password, 1 iteration
+        assert_eq!(decrypt_with("peanuts", 1, "djEwaYoJfTjaYIa4ORc8Koy8e32NJ1z89e6+cg+QcUokSSA=").as_deref(), Some("s3cret-pässword"));
+        // macOS: password from the keychain, 1003 iterations
+        assert_eq!(decrypt_with("mac-keychain-pw", 1003, "djEw8Xii8zGLQ6KnfmkVQv01kw==").as_deref(), Some("mac secret"));
+        assert_eq!(decrypt_with("wrong", 1003, "djEw8Xii8zGLQ6KnfmkVQv01kw=="), None);
+        assert_eq!(decrypt_with("peanuts", 1, "bm90LXYxMA=="), None, "values without the v10 prefix are rejected");
     }
 }

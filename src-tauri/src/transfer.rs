@@ -451,6 +451,17 @@ mod tests {
         assert!(decrypt(&heavy, "correct horse").is_err());
     }
 
+    // Made by the former Electron build's algorithm with Node's crypto: older export files must keep importing
+    const NODE_EXPORT: &str = r#"{"format":"sshelby-export","version":1,"kdf":{"name":"scrypt","salt":"OCgj7W5VuLVkTn7F1Nf03Q==","N":131072,"r":8,"p":1},"cipher":"aes-256-gcm","iv":"SD9b+04J0E8Mvu7P","tag":"L3UMZVNdCSK/k/Mxx5v2tA==","data":"duviYSuhikORYWRfxmFPrbxBH0m/rSiOVvbD05WVXv2wFx2YpWv1XY1Eb89fUk6OK8AG5b8MDXt/E7nPonXyXJaicHPvhdGGblbdj/d4BMOEdKvUz/YeiR8JApuY5Pwk4Q=="}"#;
+
+    #[test]
+    fn decrypts_files_from_the_electron_build() {
+        let env: Value = serde_json::from_str(NODE_EXPORT).unwrap();
+        let p = decrypt(&env, "correct horse battery").unwrap();
+        assert_eq!(p["hosts"][0]["address"], "example.com");
+        assert_eq!(p["hosts"][0]["password"], "hunter2");
+    }
+
     #[test]
     fn secrets_detection() {
         assert!(!has_secrets(&json!({ "hosts": [{ "address": "a" }], "keys": [] })));
