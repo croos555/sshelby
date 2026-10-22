@@ -4,7 +4,7 @@
 use std::sync::OnceLock;
 
 use aes_gcm::aead::{Aead, KeyInit};
-use aes_gcm::{Aes256Gcm, Nonce};
+use aes_gcm::Aes256Gcm;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 
@@ -60,7 +60,7 @@ pub fn encrypt(value: &str) -> String {
 fn seal(key: &[u8; 32], value: &str) -> Option<String> {
     let cipher = Aes256Gcm::new_from_slice(key).ok()?;
     let nonce = random_bytes::<12>();
-    let ct = cipher.encrypt(Nonce::from_slice(&nonce), value.as_bytes()).ok()?;
+    let ct = cipher.encrypt(&nonce.into(), value.as_bytes()).ok()?;
     let mut out = nonce.to_vec();
     out.extend(ct);
     Some(format!("{PREFIX}{}", B64.encode(out)))
@@ -71,8 +71,9 @@ fn open(key: &[u8; 32], b64: &str) -> Option<String> {
     if raw.len() < 12 {
         return None;
     }
+    let nonce: [u8; 12] = raw[..12].try_into().ok()?;
     let cipher = Aes256Gcm::new_from_slice(key).ok()?;
-    let plain = cipher.decrypt(Nonce::from_slice(&raw[..12]), &raw[12..]).ok()?;
+    let plain = cipher.decrypt(&nonce.into(), &raw[12..]).ok()?;
     String::from_utf8(plain).ok()
 }
 
@@ -90,7 +91,7 @@ pub fn decrypt(value: &str) -> String {
 // AES-128-CBC with a key derived from a password stored in the keychain.
 mod electron {
     use super::B64;
-    use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit};
+    use aes::cipher::{block_padding::Pkcs7, BlockModeDecrypt, KeyIvInit};
     use base64::Engine;
     use std::sync::OnceLock;
 
@@ -134,7 +135,7 @@ mod electron {
         let mut key = [0u8; 16];
         pbkdf2::pbkdf2_hmac::<sha1::Sha1>(password.as_bytes(), b"saltysalt", iterations, &mut key);
         let iv = [b' '; 16];
-        let plain = Aes128CbcDec::new(&key.into(), &iv.into()).decrypt_padded_vec_mut::<Pkcs7>(body).ok()?;
+        let plain = Aes128CbcDec::new(&key.into(), &iv.into()).decrypt_padded_vec::<Pkcs7>(body).ok()?;
         String::from_utf8(plain).ok()
     }
 }

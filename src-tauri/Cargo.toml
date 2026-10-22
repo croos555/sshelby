@@ -24,17 +24,16 @@ russh = { version = "0.64", default-features = false, features = ["flate2", "rin
 russh-sftp = "3"
 uuid = { version = "1", features = ["v4"] }
 keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
-aes-gcm = "0.10"
-scrypt = "0.11"
-base64 = "0.22"
-sha2 = "0.10"
+aes-gcm = "0.11"
+scrypt = "0.12"
+base64 = "0.23"
 rand = "0.10"
 getrandom = "0.3"
 unicode-normalization = "0.1"
-pbkdf2 = "0.12"
-sha1 = "0.10"
-aes = "0.8"
-cbc = { version = "0.1", features = ["alloc"] }
+pbkdf2 = "0.13"
+sha1 = "0.11"
+aes = "0.9"
+cbc = { version = "0.2", features = ["alloc"] }
 dirs = "6"
 anyhow = "1"
 trash = "5"

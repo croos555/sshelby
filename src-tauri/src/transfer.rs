@@ -5,7 +5,7 @@
 use std::collections::{HashMap, HashSet};
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
-use aes_gcm::{Aes256Gcm, Nonce};
+use aes_gcm::Aes256Gcm;
 use anyhow::{anyhow, bail};
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
@@ -21,7 +21,8 @@ const AAD: &[u8] = b"sshelby-export:1";
 const LOG_N: u8 = 17;
 
 fn derive_key(passphrase: &str, salt: &[u8], log_n: u8, r: u32, p: u32) -> anyhow::Result<[u8; 32]> {
-    let params = scrypt::Params::new(log_n, r, p, 32).map_err(|e| anyhow!("{e}"))?;
+    // The output length comes from the buffer (32 bytes for AES-256)
+    let params = scrypt::Params::new(log_n, r, p).map_err(|e| anyhow!("{e}"))?;
     let mut key = [0u8; 32];
     let normalized: String = passphrase.nfkc().collect();
     scrypt::scrypt(normalized.as_bytes(), salt, &params, &mut key).map_err(|e| anyhow!("{e}"))?;
@@ -35,7 +36,7 @@ fn encrypt(payload: &Value, passphrase: &str) -> anyhow::Result<Value> {
     let cipher = Aes256Gcm::new_from_slice(&key)?;
     let plain = serde_json::to_vec(payload)?;
     // Bind the header to the ciphertext so it can't be swapped
-    let mut ct = cipher.encrypt(Nonce::from_slice(&iv), Payload { msg: &plain, aad: AAD }).map_err(|_| anyhow!("Encryption failed"))?;
+    let mut ct = cipher.encrypt(&iv.into(), Payload { msg: &plain, aad: AAD }).map_err(|_| anyhow!("Encryption failed"))?;
     let tag = ct.split_off(ct.len() - 16);
     Ok(json!({
         "format": FORMAT,
@@ -64,9 +65,10 @@ fn decrypt(env: &Value, passphrase: &str) -> anyhow::Result<Value> {
         bail!("Wrong key, or the file is corrupted");
     }
     data.extend(tag);
+    let iv: [u8; 12] = iv.as_slice().try_into()?;
     let cipher = Aes256Gcm::new_from_slice(&key)?;
     let plain = cipher
-        .decrypt(Nonce::from_slice(&iv), Payload { msg: &data, aad: AAD })
+        .decrypt(&iv.into(), Payload { msg: &data, aad: AAD })
         .map_err(|_| anyhow!("Wrong key, or the file is corrupted"))?;
     Ok(serde_json::from_slice(&plain)?)
 }
