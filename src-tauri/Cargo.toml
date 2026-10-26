@@ -34,7 +34,7 @@ pbkdf2 = "0.13"
 sha1 = "0.11"
 aes = "0.9"
 cbc = { version = "0.2", features = ["alloc"] }
-dirs = "6"
+dirs = "7"
 anyhow = "1"
 trash = "5"
 regex = "1"
